@@ -1,8 +1,8 @@
 <% content_for :title, "Create new project" %>
 
-<dialog class="project-creation-dialog" id="project-creation-dialog" aria-label="Create new project">
-  <button type="button" class="project-creation-dialog__close" aria-label="Close"
-          onclick="document.getElementById('project-creation-dialog').close()">
+<dialog class="project-creation-dialog" id="project-creation-dialog" aria-label="Create new project"
+        data-controller="project-creation"
+        data-home-url="<%= home_path %>">
     &times;
   </button>
 
@@ -85,28 +85,3 @@
 
   </div>
 </dialog>
-
-<script>
-  (function () {
-    var dialog = document.getElementById("project-creation-dialog");
-    if (!dialog) return;
-
-    dialog.showModal();
-
-    dialog.addEventListener("click", function (e) {
-      var rect = dialog.getBoundingClientRect();
-      var inside =
-        e.clientX >= rect.left && e.clientX <= rect.right &&
-        e.clientY >= rect.top  && e.clientY <= rect.bottom;
-      if (!inside) dialog.close();
-    });
-
-    dialog.addEventListener("close", function () {
-      if (history.length > 1) {
-        history.back();
-      } else {
-        window.location.href = <%= home_path.to_json %>;
-      }
-    });
-  })();
-</script>
