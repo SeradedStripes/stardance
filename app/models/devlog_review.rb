@@ -25,6 +25,6 @@ class DevlogReview < ApplicationRecord
   belongs_to :post_devlog, class_name: "Post::Devlog"
   belongs_to :ysws_review
 
-  validates :original_minutes, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
-  validates :approved_minutes, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
+  validates :original_minutes, numericality: { greater_than_or_equal_to: 0 }, allow_nil: false
+  validates :approved_minutes, numericality: { greater_than_or_equal_to: 0 }, allow_nil: false
 end

@@ -48,6 +48,6 @@ class YswsReview < ApplicationRecord
 
   has_many :devlog_reviews, dependent: :destroy
 
-  validates :original_minutes, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
-  validates :approved_minutes, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
+  validates :original_minutes, numericality: { greater_than_or_equal_to: 0 }, allow_nil: false
+  validates :approved_minutes, numericality: { greater_than_or_equal_to: 0 }, allow_nil: false
 end
