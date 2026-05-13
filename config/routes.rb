@@ -719,7 +719,9 @@ Rails.application.routes.draw do
     end
     resources :reports, only: [ :create ], module: :projects
     resource :og_image, only: [ :show ], module: :projects, defaults: { format: :png }
-    resource :ships, only: [ :new, :create ], module: :projects
+    resource :ships, only: [ :new, :create ], module: :projects do
+      resource :review, only: [ :create ], module: :ships
+    end
     resource :mission, only: [ :create, :destroy ], module: :projects, controller: "missions"
     resources :mission_step_completions,
               only: [ :create, :destroy ],
