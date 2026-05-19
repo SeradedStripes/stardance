@@ -36,6 +36,10 @@ module User::StateFlags
     tutorial_step_completed?(:first_login) && !tutorial_step_completed?(:free_stickers)
   end
 
+  def onboarded? = onboarded_at.present?
+  def hca_linked? = hack_club_identity.present?
+  def guest? = !hca_linked?
+
   private
     def append_array_value_once(column, value)
       values = public_send(column) || []
