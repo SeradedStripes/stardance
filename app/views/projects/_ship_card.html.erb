@@ -1,6 +1,6 @@
 <%# Cream-tinted ship-event card. Reused for every ShipEvent post on the
-    project page. The most recent ship gets a "Latest ship" label up top; pass
-    `latest: true` to render it. %>
+    project page. Pass `latest: true` for the most recent ship and
+    `ship_number: n` for the sequential label (e.g. "Ship #2"). %>
 <%
   ship             = post.postable
   author           = post.user
@@ -10,12 +10,10 @@
 %>
 
 <article class="project-show__latest-ship">
-  <% if local_assigns[:latest] %>
-    <header class="project-show__latest-ship-label">
-      <%= inline_svg_tag "icons/sticker.svg", class: "project-show__latest-ship-icon" %>
-      <span>Latest ship</span>
-    </header>
-  <% end %>
+  <header class="project-show__latest-ship-label">
+    <%= inline_svg_tag "icons/sticker.svg", class: "project-show__latest-ship-icon" %>
+    <span>Ship #<%= local_assigns[:ship_number] %></span>
+  </header>
 
   <div class="project-show__latest-ship-body">
     <% if author %>
