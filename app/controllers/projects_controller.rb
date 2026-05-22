@@ -208,8 +208,13 @@ class ProjectsController < ApplicationController
     if success && @project.errors.empty?
       respond_to do |format|
         format.turbo_stream do
-          flash.now[:notice] = "Project updated successfully"
-          render turbo_stream: turbo_stream.update("flash-region", partial: "shared/flash")
+          if params[:return_to].present?
+            flash[:notice] = "Project updated successfully"
+            redirect_to url_from(params[:return_to])
+          else
+            flash.now[:notice] = "Project updated successfully"
+            render turbo_stream: turbo_stream.update("flash-region", partial: "shared/flash")
+          end
         end
         format.html do
           flash[:notice] = "Project updated successfully"
@@ -219,8 +224,13 @@ class ProjectsController < ApplicationController
     else
       respond_to do |format|
         format.turbo_stream do
-          flash.now[:alert] = "Failed to update project: #{@project.errors.full_messages.join(', ')}"
-          render turbo_stream: turbo_stream.update("flash-region", partial: "shared/flash"), status: :unprocessable_entity
+          if params[:return_to].present?
+            flash[:alert] = "Failed to update project: #{@project.errors.full_messages.join(', ')}"
+            redirect_to url_from(params[:return_to])
+          else
+            flash.now[:alert] = "Failed to update project: #{@project.errors.full_messages.join(', ')}"
+            render turbo_stream: turbo_stream.update("flash-region", partial: "shared/flash"), status: :unprocessable_entity
+          end
         end
         format.html do
           flash[:alert] = "Failed to update project: #{@project.errors.full_messages.join(', ')}"

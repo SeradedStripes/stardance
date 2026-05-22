@@ -756,6 +756,16 @@ Rails.application.routes.draw do
     resources :reports, only: [ :create ], module: :projects
     resource :og_image, only: [ :show ], module: :projects, defaults: { format: :png }
     resource :ships, only: [ :new, :create ], module: :projects do
+      # Wizard steps, one route per page (rather than ?step=N query param):
+      #   new      → refresher
+      #   info     → project info form
+      #   review   → review-instructions form (GET only — POST goes to the
+      #              nested :review resource below, which persists the value
+      #              into the session wizard and redirects to compose)
+      #   compose  → final ship composer
+      get :info,    on: :member
+      get :review,  on: :member, action: :review_step
+      get :compose, on: :member
       resource :review, only: [ :create ], module: :ships
     end
     resource :mission, only: [ :create, :destroy ], module: :projects, controller: "missions"
