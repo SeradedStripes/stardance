@@ -705,6 +705,8 @@ Rails.application.routes.draw do
       end
     end
 
+    resources :devlog_reviews, only: [ :update ]
+
     get "review", to: "ysws#index", as: "ysws_reviews"
     get "review/:id", to: "ysws#show", as: "ysws_review"
     post "review/:id/report_fraud", to: "ysws#report_fraud", as: "ysws_report_fraud"

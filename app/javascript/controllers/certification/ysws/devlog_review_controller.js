@@ -169,7 +169,7 @@ export default class extends Controller {
 
   // Send update to server
   async sendUpdate(data) {
-    const url = `/admin/devlog_reviews/${this.idValue}`;
+    const url = `/admin/certification/devlog_reviews/${this.idValue}`;
     const csrfToken = document.querySelector(
       'meta[name="csrf-token"]',
     )?.content;
