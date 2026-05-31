@@ -106,18 +106,17 @@
         </button>
       <% end %>
     <% else %>
-      <% if logged_in %>
-        <%= render ActionButtonComponent.new(
-              text: cta_price_label,
-              leading_icon: cta_price_icon,
-              href: order_url,
-              size: :large,
-              variant: :primary,
-              class: "shop-item-card__order-cta",
-              disabled: balance.to_i < display_price,
-              data: { turbo_frame: "_top" }
-            ) %>
-      <% end %>
+      <% can_buy = logged_in && balance.to_i >= display_price %>
+      <%= render ActionButtonComponent.new(
+            text: cta_price_label,
+            leading_icon: cta_price_icon,
+            href: can_buy ? order_url : nil,
+            size: :large,
+            variant: :primary,
+            class: "shop-item-card__order-cta",
+            disabled: !can_buy,
+            data: can_buy ? { turbo_frame: "_top" } : {}
+          ) %>
     <% end %>
   </div>
 </div>
