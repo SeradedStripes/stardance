@@ -108,6 +108,10 @@ class ApplicationController < ActionController::Base
     end
   end
 
+  def client_ip_address
+    request.headers["CF-Connecting-IP"].presence || request.remote_ip
+  end
+
   def prepare_boot_splash
     @show_boot_splash = false
     return if controller_name == "landing"

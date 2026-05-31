@@ -260,7 +260,13 @@ class Onboarding::WizardController < ApplicationController
   def create_guest!(email)
     ref = signup_referral_code
     5.times do
-      user = User.new(email: email, display_name: User.placeholder_display_name_from_email(email), ref: ref)
+      user = User.new(
+        email: email,
+        display_name: User.placeholder_display_name_from_email(email),
+        ref: ref,
+        ip_address: client_ip_address,
+        user_agent: request.user_agent
+      )
       return user if user.save
       # Email collision means the user already exists — hand back the existing
       # record. For any other error (most likely a display_name collision in

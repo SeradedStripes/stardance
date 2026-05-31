@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_31_153633) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_31_162601) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -1075,6 +1075,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_31_153633) do
     t.string "enriched_ref"
     t.string "experience_level"
     t.string "first_name"
+    t.string "geocoded_country"
+    t.float "geocoded_lat"
+    t.float "geocoded_lon"
+    t.string "geocoded_subdivision"
     t.string "granted_roles", default: [], null: false, array: true
     t.string "guest_email"
     t.boolean "has_gotten_free_stickers", default: false
@@ -1082,6 +1086,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_31_153633) do
     t.string "hcb_email"
     t.string "interests", default: [], array: true
     t.text "internal_notes"
+    t.string "ip_address"
     t.string "last_name"
     t.boolean "manual_ysws_override"
     t.boolean "mission_review_notifications", default: true, null: false
@@ -1096,6 +1101,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_31_153633) do
     t.datetime "synced_at"
     t.string "things_dismissed", default: [], null: false, array: true
     t.datetime "updated_at", null: false
+    t.string "user_agent"
     t.string "user_ref"
     t.datetime "verification_checked_at"
     t.string "verification_status", default: "needs_submission", null: false

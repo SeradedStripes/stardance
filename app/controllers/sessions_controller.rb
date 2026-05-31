@@ -5,7 +5,9 @@ class SessionsController < ApplicationController
     result = Sessions::HCALoginService.new(
       auth: request.env["omniauth.auth"],
       current_user: current_user,
-      referral_code: cookies[:referral_code]
+      referral_code: cookies[:referral_code],
+      ip_address: client_ip_address,
+      user_agent: request.user_agent
     ).call
 
     unless result.ok?
