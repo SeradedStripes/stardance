@@ -325,7 +325,7 @@ class ShopItem < ApplicationRecord
     hours_at_10x = base_hours.ceil
     hours_at_20x = (base_hours * (high_multiplier.to_f / low_multiplier.to_f)).ceil
 
-    [hours_at_10x, hours_at_20x]
+    [ hours_at_10x, hours_at_20x ]
   end
 
   def remaining_stock
