@@ -298,18 +298,29 @@
 // A planet rising behind the headline from the top-right corner — a deliberate
 // celestial anchor, bleeding off the corner so its flare reads as atmosphere
 // rather than a competing object dropped mid-frame.
+//
+// The art is the platform's landing/space/moon.png (1393×1368) — the same
+// render the raffle's retired globe.png (1859×1776) was cut from, minus the
+// canvas padding around it (left 162, top 142, right 304, bottom 266). The
+// padding below rebuilds that frame at the element's own scale (fractions of
+// the 1859px canvas via --w, since padding percentages resolve against the
+// parent), so the flare lands exactly where it always did over the GPU fan.
 .raffle-hero-panel__globe {
+  --w: clamp(280px, 38vw, 460px);
   position: absolute;
   z-index: 0;
   top: clamp(-130px, -7vw, -70px);
   right: clamp(-110px, -5vw, -60px);
-  width: clamp(280px, 38vw, 460px);
+  width: var(--w);
   height: auto;
+  box-sizing: border-box;
+  padding: calc(var(--w) * 0.0764) calc(var(--w) * 0.1635)
+    calc(var(--w) * 0.1431) calc(var(--w) * 0.0871);
   opacity: 0.9;
   pointer-events: none;
 
   @media (max-width: 600px) {
-    width: 240px;
+    --w: 240px;
     top: -90px;
     right: -70px;
     opacity: 0.55;

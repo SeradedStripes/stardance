@@ -12,4 +12,10 @@ Raffle::Engine.routes.draw do
     get "dev_login(/:handle)", to: "sessions#dev_login", as: :dev_login
     post "dev/referrals", to: "dashboard#dev_referrals", as: :dev_referrals
   end
+
+  # Terminal catch-all: an unmatched path in a mounted engine cascades
+  # (X-Cascade: pass) back to the platform's routes, so without this the
+  # raffle host would serve platform pages like /home. The engine owns its
+  # host outright — anything it doesn't define is a 404.
+  match "*path", to: "application#not_found", via: :all, format: false
 end

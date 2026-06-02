@@ -10,6 +10,14 @@ module Raffle
 
     helper_method :current_participant, :signed_in?
 
+    # Target of the routes' terminal catch-all. Raising RoutingError hands the
+    # request to show_exceptions, which renders the standard 404 page.
+    skip_forgery_protection only: :not_found
+
+    def not_found
+      raise ActionController::RoutingError, "No route matches #{request.path.inspect} on the raffle host"
+    end
+
     private
 
     def current_participant
