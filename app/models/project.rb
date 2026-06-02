@@ -20,6 +20,7 @@
 #  synced_at          :datetime
 #  title              :string           not null
 #  tutorial           :boolean          default(FALSE), not null
+#  update_description :text
 #  created_at         :datetime         not null
 #  updated_at         :datetime         not null
 #  fire_letter_id     :string
@@ -40,6 +41,7 @@ class Project < ApplicationRecord
   include AASM
   include SoftDeletable
   include SemanticSearchIndexable
+  include Gorse::SyncableProject
 
   has_ferret_search :title, :description
   semantic_search_indexable type: "project"
@@ -423,6 +425,13 @@ class Project < ApplicationRecord
       .all? { |r| r[:passed] }
   end
 
+  def info_blocker_message
+    req = shipping_requirements
+      .select { |r| INFO_REQUIREMENT_KEYS.include?(r[:key]) }
+      .find { |r| !r[:passed] }
+    req&.dig(:label)
+  end
+
   # The editable info fields (see FIELD_REQUIREMENT_MAP) that still have an
   # unmet requirement — used to highlight what's left to fill in on the form.
   def incomplete_info_fields
@@ -499,9 +508,7 @@ class Project < ApplicationRecord
     cache_key = "url_reachable_#{Digest::MD5.hexdigest(url)}"
     Rails.cache.fetch(cache_key, expires_in: 5.minutes) do
       next false unless SafeUrl.safe_to_probe?(url)
-      uri = URI.parse(url)
-      response = head_with_redirects(uri)
-      response.is_a?(Net::HTTPSuccess) || response.is_a?(Net::HTTPRedirection)
+      probe_url(URI.parse(url))
     end
   rescue URI::InvalidURIError, SocketError, Errno::ECONNREFUSED, Errno::EHOSTUNREACH,
          Net::OpenTimeout, Net::ReadTimeout, OpenSSL::SSL::SSLError
@@ -524,23 +531,24 @@ class Project < ApplicationRecord
     PostCreationToSlackJob.perform_later(self)
   end
 
-  def head_with_redirects(uri, limit = 3)
-    if limit <= 0
-      Net::HTTPServiceUnavailable.new("1.1", "503", "Too many redirects")
-    else
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = (uri.scheme == "https")
-      http.open_timeout = 10
-      http.read_timeout = 10
-      response = http.request_head(uri.request_uri)
+  def probe_url(uri, limit = 3)
+    return false if limit <= 0
 
-      if response.is_a?(Net::HTTPRedirection) && response["location"]
-        next_uri = URI.parse(response["location"])
-        return Net::HTTPForbidden.new("1.1", "403", "Redirect target not safe") unless SafeUrl.safe_to_probe?(next_uri.to_s)
-        head_with_redirects(next_uri, limit - 1)
-      else
-        response
-      end
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = (uri.scheme == "https")
+    http.open_timeout = 10
+    http.read_timeout = 10
+    response = http.request_head(uri.request_uri)
+
+    if response.is_a?(Net::HTTPRedirection) && response["location"]
+      next_uri = URI.parse(response["location"])
+      return false unless SafeUrl.safe_to_probe?(next_uri.to_s)
+      probe_url(next_uri, limit - 1)
+    elsif response.is_a?(Net::HTTPSuccess)
+      true
+    else
+      # Some servers don't support HEAD — fall back to GET
+      http.request_get(uri.request_uri).is_a?(Net::HTTPSuccess)
     end
   end
 end

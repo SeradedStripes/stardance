@@ -1,6 +1,6 @@
 class ShopPolicy < ApplicationPolicy
   def index?
-    signed_in_any?
+    true
   end
 
   def show?
@@ -12,6 +12,10 @@ class ShopPolicy < ApplicationPolicy
   end
 
   def cancel?
+    signed_in_any?
+  end
+
+  def destroy?
     signed_in_any?
   end
 end

@@ -26,7 +26,7 @@ module SemanticSearch
     def redis_url = redis_config[:url].presence
 
     def openai_api_key
-      Rails.application.credentials.dig(:openai, :api_key).presence
+      config.openai_api_key.presence
     end
 
     def redis = @redis ||= Redis.new(**redis_client_options)
@@ -92,6 +92,35 @@ module SemanticSearch
       false
     end
 
+    def upsert_batch(records, batch_size: 100)
+      return 0 unless enabled? && ensure_index!
+
+      indexed = 0
+
+      records.each_slice(batch_size) do |batch|
+        docs = batch.filter_map { |record| Document.for(record) }.select(&:indexable?)
+        next if docs.empty?
+
+        vectors = embed_many(docs.map(&:search_text))
+        next if vectors.blank?
+
+        redis.pipelined do |pipe|
+          docs.zip(vectors).each do |doc, vector|
+            next if vector.blank?
+            pipe.mapped_hmset(doc.redis_key, doc.to_redis_hash.merge("embedding" => pack_vector(vector)))
+            indexed += 1
+          end
+        end
+      end
+
+      clear_result_cache
+      indexed
+    rescue StandardError => e
+      handle_redis_error(:upsert_batch, 0, e) if e.is_a?(Redis::BaseError)
+      Rails.logger.warn("SemanticSearch upsert_batch failed: #{e.class}: #{e.message}")
+      indexed
+    end
+
     def delete(record_or_type, id = nil)
       type, record_id =
         if record_or_type.respond_to?(:id)
@@ -139,7 +168,7 @@ module SemanticSearch
         "DIALECT", "2"
       )
 
-      hydrate(raw, viewer: viewer, limit: limit)
+      hydrate(raw, viewer: viewer, limit: limit, query: query)
     rescue Redis::BaseError, Faraday::Error, JSON::ParserError => e
       handle_redis_error(:search, empty_results, e) if e.is_a?(Redis::BaseError)
       Rails.logger.warn("SemanticSearch query failed: #{e.class}: #{e.message}")
@@ -150,16 +179,27 @@ module SemanticSearch
       response = openai_connection.post do |req|
         req.headers["Authorization"] = "Bearer #{openai_api_key}"
         req.headers["Content-Type"] = "application/json"
-        req.body = {
-          model: model,
-          input: input,
-          dimensions: dimensions
-        }.to_json
+        req.body = { model: model, input: input, dimensions: dimensions }.to_json
       end
 
       raise Error, "OpenAI embeddings error #{response.status}: #{response.body}" unless response.success?
 
       JSON.parse(response.body).dig("data", 0, "embedding")
+    end
+
+    def embed_many(inputs)
+      response = openai_connection.post do |req|
+        req.headers["Authorization"] = "Bearer #{openai_api_key}"
+        req.headers["Content-Type"] = "application/json"
+        req.body = { model: model, input: inputs, dimensions: dimensions }.to_json
+      end
+
+      raise Error, "OpenAI embeddings error #{response.status}: #{response.body}" unless response.success?
+
+      JSON.parse(response.body)
+        .fetch("data", [])
+        .sort_by { |d| d["index"] }
+        .map { |d| d["embedding"] }
     end
 
     def openai_connection
@@ -209,15 +249,15 @@ module SemanticSearch
       redis_config[:error_handler]&.call(method: method, returning: returning, exception: exception)
     end
 
-    def hydrate(raw, viewer:, limit:)
+    def hydrate(raw, viewer:, limit:, query: nil)
       rows = parse_redis_search(raw)
       grouped = rows.group_by { |row| row["type"] }
       results = empty_results
 
-      results["project"] = hydrate_projects(grouped["project"], limit)
-      results["devlog"] = hydrate_devlogs(grouped["devlog"], viewer, limit)
-      results["ship"] = hydrate_ships(grouped["ship"], viewer, limit)
-      results["user"] = hydrate_users(grouped["user"], viewer, limit)
+      results["project"] = hydrate_projects(grouped["project"], limit, query)
+      results["devlog"] = hydrate_devlogs(grouped["devlog"], viewer, limit, query)
+      results["ship"] = hydrate_ships(grouped["ship"], viewer, limit, query)
+      results["user"] = hydrate_users(grouped["user"], viewer, limit, query)
 
       results
     end
@@ -232,15 +272,16 @@ module SemanticSearch
       end
     end
 
-    def hydrate_projects(rows, limit)
+    def hydrate_projects(rows, limit, query = nil)
       ids = ids_from(rows)
       return [] if ids.empty?
 
       records = Project.not_deleted.where(id: ids).index_by { |project| project.id.to_s }
-      ids.filter_map { |id| records[id]&.then { |project| Document.for(project).to_result } }.first(limit)
+      results = ids.filter_map { |id| records[id]&.then { |project| Document.for(project).to_result } }
+      title_boost(results, query).first(limit)
     end
 
-    def hydrate_devlogs(rows, viewer, limit)
+    def hydrate_devlogs(rows, viewer, limit, query = nil)
       ids = ids_from(rows)
       return [] if ids.empty?
 
@@ -251,10 +292,11 @@ module SemanticSearch
         .includes(:project, :user, :postable)
         .index_by { |post| post.postable_id.to_s }
 
-      ids.filter_map { |id| posts[id]&.then { |post| Document.for(post.postable).to_result } }.first(limit)
+      results = ids.filter_map { |id| posts[id]&.then { |post| Document.for(post.postable).to_result } }
+      title_boost(results, query).first(limit)
     end
 
-    def hydrate_ships(rows, viewer, limit)
+    def hydrate_ships(rows, viewer, limit, query = nil)
       ids = ids_from(rows)
       return [] if ids.empty?
 
@@ -266,10 +308,11 @@ module SemanticSearch
         .includes(:project, :user, :postable)
         .index_by { |post| post.postable_id.to_s }
 
-      ids.filter_map { |id| posts[id]&.then { |post| Document.for(post.postable).to_result } }.first(limit)
+      results = ids.filter_map { |id| posts[id]&.then { |post| Document.for(post.postable).to_result } }
+      title_boost(results, query).first(limit)
     end
 
-    def hydrate_users(rows, viewer, limit)
+    def hydrate_users(rows, viewer, limit, query = nil)
       ids = ids_from(rows)
       return [] if ids.empty?
 
@@ -277,7 +320,15 @@ module SemanticSearch
       scope = scope.where(verification_status: "verified") unless viewer&.admin?
 
       records = scope.index_by { |user| user.id.to_s }
-      ids.filter_map { |id| records[id]&.then { |user| Document.for(user).to_result } }.first(limit)
+      results = ids.filter_map { |id| records[id]&.then { |user| Document.for(user).to_result } }
+      title_boost(results, query).first(limit)
+    end
+
+    def title_boost(results, query)
+      return results if query.blank?
+
+      q = query.downcase
+      results.partition { |r| r[:title].to_s.downcase.include?(q) }.flatten
     end
 
     def ids_from(rows)

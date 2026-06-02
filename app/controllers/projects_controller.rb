@@ -25,6 +25,8 @@ class ProjectsController < ApplicationController
     end
 
     prepare_project_show_context
+
+    render :show_hackpad if @project_onboarding_mission&.slug == "hackpad"
   end
 
   def prepare_project_show_context
@@ -120,6 +122,9 @@ class ProjectsController < ApplicationController
     end
 
     track_event "Viewed project", project_id: @project.id
+    if current_user.present? && !@is_member
+      @project.send_gorse_feedback_later(user: current_user, item: @project, feedback_type: :read, comment: "project_show")
+    end
 
     @latest_ship_post = @posts.find { |post| post.postable_type == "Post::ShipEvent" }
     latest_ship_event = @latest_ship_post&.postable
@@ -226,9 +231,16 @@ class ProjectsController < ApplicationController
 
       project_hours = @project.total_hackatime_hours
 
-      if (slug = params[:mission_slug].presence)
-        mission = Mission.find_by(slug: slug)
-        @project.missions << mission if mission
+      if (slug = params[:mission_slug].presence) && (mission = Mission.find_by(slug: slug))
+        @project.missions << mission
+        attrs = {}
+        if @project.title.blank? || @project.title == "Untitled"
+          attrs[:title] = mission.default_project_title.presence || mission.name
+        end
+        if @project.description.blank? && mission.default_project_description.present?
+          attrs[:description] = mission.default_project_description
+        end
+        @project.update!(attrs) if attrs.any?
       end
 
       first_project = current_user.projects.count == 1
@@ -398,7 +410,7 @@ class ProjectsController < ApplicationController
   end
 
   def project_params
-    params.require(:project).permit(:title, :description, :demo_url, :repo_url, :readme_url, :banner, :ai_declaration, hackatime_project_ids: [])
+    params.require(:project).permit(:title, :description, :demo_url, :repo_url, :readme_url, :banner, :ai_declaration, :update_description, hackatime_project_ids: [])
   end
 
   def hackatime_project_ids
