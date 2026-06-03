@@ -61,7 +61,7 @@
             <span><%= @payout_request.admin&.display_name %></span>
           </div>
           <div class="sw-payouts__detail-row">
-            <span class="sw-payouts__label">Rejected At</span>
+            <span class="sw-payouts__label">Last Updated</span>
             <span><%= @payout_request.updated_at.strftime('%b %d, %Y at %H:%M') %></span>
           </div>
           <% if @payout_request.adjust_reason.present? %>
@@ -76,8 +76,14 @@
       <% if @payout_request.pending? %>
         <div class="sw-payouts__actions-card">
           <h2>Approve & Pay</h2>
+          <%
+            pay_confirmation = [
+              "var amount = this.form.querySelector('#adjusted-amount').value || #{@payout_request.amount.to_json}",
+              "return confirm('Pay ' + amount + ' ✦ to ' + #{@payout_request.user.display_name.to_json} + '?')"
+            ].join("; ")
+          %>
           <%= form_with url: pay_admin_certification_payout_path(@payout_request),
-                method: :post, class: "sw-payouts__pay-form" do %>
+                method: :post, class: "sw-payouts__pay-form", onsubmit: pay_confirmation do %>
             <div class="sw-payouts__form-group">
               <label for="adjusted-amount" class="sw-payouts__label">
                 Amount to pay (leave blank to use requested amount of <%= @payout_request.amount %> ✦)
@@ -99,8 +105,7 @@
                     placeholder: "e.g. 2 reviews were low-effort",
                     class: "sw-payouts__input sw-payouts__input--textarea" %>
             </div>
-            <button type="submit" class="action-btn action-btn--primary"
-                    data-confirm="Pay <%= @payout_request.amount %> ✦ to <%= @payout_request.user.display_name %>?">
+            <button type="submit" class="action-btn action-btn--primary">
               Pay
             </button>
           <% end %>
@@ -108,7 +113,9 @@
           <div class="sw-payouts__reject-section">
             <h2>Reject Request</h2>
             <%= form_with url: reject_admin_certification_payout_path(@payout_request),
-                  method: :post, class: "sw-payouts__pay-form" do %>
+                  method: :post,
+                  class: "sw-payouts__pay-form",
+                  onsubmit: "return confirm('Reject this payout request?')" do %>
               <div class="sw-payouts__form-group">
                 <label for="reject-reason" class="sw-payouts__label">
                   Reason for rejection (required)
@@ -120,8 +127,7 @@
                       placeholder: "e.g. invalid review submissions",
                       class: "sw-payouts__input sw-payouts__input--textarea" %>
               </div>
-              <button type="submit" class="action-btn action-btn--destructive"
-                      data-confirm="Reject this payout request?">
+              <button type="submit" class="action-btn action-btn--destructive">
                 Reject Request
               </button>
             <% end %>

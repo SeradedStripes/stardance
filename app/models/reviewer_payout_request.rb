@@ -46,8 +46,6 @@ class ReviewerPayoutRequest < ApplicationRecord
   validate :sufficient_balance, on: :create
   validate :no_pending_request, on: :create
 
-  scope :for_user, ->(user) { where(user: user) }
-
   aasm timestamps: true do
     state :pending, initial: true
     state :paid
@@ -88,7 +86,6 @@ class ReviewerPayoutRequest < ApplicationRecord
 
       pay!
       create_payout_ledger_entry!(admin)
-      record_admin_event!("paid", admin, paid_changes)
 
       true
     end
@@ -110,7 +107,6 @@ class ReviewerPayoutRequest < ApplicationRecord
       self.adjust_reason = reason
 
       reject!
-      record_admin_event!("rejected", admin, rejected_changes(reason))
 
       true
     end
@@ -122,11 +118,6 @@ class ReviewerPayoutRequest < ApplicationRecord
       .where(reviewer: user)
       .where.not(status: :pending)
       .sum(:stardust_earned)
-  end
-
-  def self.paid_for(user)
-    return 0 unless user
-    where(user: user, aasm_state: "paid").sum(:paid_amount)
   end
 
   def self.unclaimed_for(user)
@@ -141,6 +132,9 @@ class ReviewerPayoutRequest < ApplicationRecord
 
   def self.settled_for(user)
     return 0 unless user
+
+    # Paid requests settle the requested claim, even when an admin approves less.
+    # The adjustment is a final correction, not a partial payout that remains claimable.
     where(user: user, aasm_state: "paid").sum(:amount)
   end
 
@@ -185,36 +179,5 @@ class ReviewerPayoutRequest < ApplicationRecord
       created_by: "#{admin.display_name} (#{admin.id})",
       ledgerable: self
     )
-  end
-
-  def record_admin_event!(event, admin, changes)
-    ::PaperTrail::Version.create!(
-      item_type: self.class.name,
-      item_id: id,
-      event: event,
-      whodunnit: admin.id,
-      object_changes: changes.to_json
-    )
-  end
-
-  def paid_changes
-    changes = {
-      aasm_state: %w[pending paid],
-      admin_id: [ nil, admin_id ],
-      paid_amount: [ nil, paid_amount ],
-      paid_at: [ nil, paid_at ]
-    }
-
-    changes[:adjusted_amount] = [ nil, adjusted_amount ] if adjusted_amount.present?
-    changes[:adjust_reason] = [ nil, adjust_reason ] if adjust_reason.present?
-    changes
-  end
-
-  def rejected_changes(reason)
-    {
-      aasm_state: %w[pending rejected],
-      admin_id: [ nil, admin_id ],
-      adjust_reason: [ nil, reason ]
-    }
   end
 end
