@@ -5,21 +5,6 @@
   background: var(--color-space-card, rgba(255, 255, 255, 0.04));
   color: var(--color-space-text);
 
-  &--empty {
-    background: transparent;
-    border-style: dashed;
-  }
-}
-
-.mission-panel__empty-text {
-  margin: 0;
-  font-size: 0.95rem;
-  color: var(--color-space-text-muted, var(--color-space-text));
-
-  a {
-    color: var(--color-space-accent, var(--color-yellow-500));
-    text-decoration: underline;
-  }
 }
 
 .mission-panel__header {
