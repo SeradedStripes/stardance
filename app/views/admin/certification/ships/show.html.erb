@@ -71,8 +71,6 @@
           <dl class="ship-review__meta">
             <dt>Submitter</dt>
             <dd><%= owner&.display_name || "—" %></dd>
-            <dt>Email</dt>
-            <dd><%= owner&.email.presence || "—" %></dd>
             <dt>Slack</dt>
             <dd>
               <% if owner&.slack_id.present? %>
