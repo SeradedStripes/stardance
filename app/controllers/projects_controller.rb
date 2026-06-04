@@ -543,7 +543,7 @@ class ProjectsController < ApplicationController
   rescue Faraday::ConnectionFailed => e
     @project.errors.add(attribute, "Please make sure the URL is valid and reachable: #{e.message}")
   rescue StandardError => e
-    @project.errors.add(attribute, "#{name} could not be verified (idk why, pls let a admin know if this is happening a lot and your sure that the URL is valid): #{e.message}")
+    @project.errors.add(attribute, "#{name} could not be verified (idk why, please let a admin know if this is happening a lot and your sure that the URL is valid): #{e.message}")
   end
   def link_hackatime_projects
     # Unlink hackatime projects that were removed
