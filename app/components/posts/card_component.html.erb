@@ -17,13 +17,23 @@
     </div>
   <% end %>
 
-  <header class="feed-post-card__header">
-    <% if author.present? %>
-      <%= link_to profile_path(author.display_name), class: "feed-post-card__avatar-link", aria: { label: "@#{author_name}" } do %>
-        <%= image_tag author.avatar, alt: "", class: "feed-post-card__avatar" %>
+  <% if fire_event? %>
+    <div class="feed-post-card__super-star markdown-content">
+      <span class="feed-post-card__super-star-title">
+        Super Star
+      </span>
+    </div>
+  <% end %>
+
+  <header class="feed-post-card__header<%= ' feed-post-card__super-star-header' if fire_event? %>">
+    <% unless fire_event? %>
+      <% if author.present? %>
+        <%= link_to profile_path(author.display_name), class: "feed-post-card__avatar-link", aria: { label: "@#{author_name}" } do %>
+          <%= image_tag author.avatar, alt: "", class: "feed-post-card__avatar" %>
+        <% end %>
+      <% else %>
+        <span class="feed-post-card__avatar feed-post-card__avatar--placeholder" aria-hidden="true">S</span>
       <% end %>
-    <% else %>
-      <span class="feed-post-card__avatar feed-post-card__avatar--placeholder" aria-hidden="true">S</span>
     <% end %>
 
     <div class="feed-post-card__meta">
@@ -34,7 +44,11 @@
           <span class="feed-post-card__author">@stardancer</span>
         <% end %>
 
-        <% if project.present? %>
+        <% if fire_event? %>
+          <span class="feed-post-card__context">has marked</span>
+          <%= link_to project.title, project_path(project), class: "feed-post-card__project" %>
+          <span class="feed-post-card__context">as a Super Star!</span>
+        <% elsif project.present? %>
           <span class="feed-post-card__context">on</span>
           <%= link_to project.title, project_path(project), class: "feed-post-card__project" %>
         <% end %>
@@ -61,8 +75,7 @@
   </header>
 
   <% if fire_event? %>
-    <div class="feed-post-card__super-star markdown-content">
-      <span class="feed-post-card__super-star-eyebrow">⭐ Super Star</span>
+    <div class="feed-post-card__super-star-body markdown-content">
       <%= helpers.md(body, allow_images: false) %>
     </div>
   <% elsif body.present? && !quote_repost? %>
@@ -88,7 +101,7 @@
     </div>
   <% end %>
 
-  <% if show_footer? %>
+  <% if show_footer? && !fire_event? %>
   <footer class="feed-post-card__actions">
     <% if show_comments && interaction_post&.postable_type == "Post::Devlog" %>
       <div class="feed-post-card__comment-action" data-controller="comment-modal">

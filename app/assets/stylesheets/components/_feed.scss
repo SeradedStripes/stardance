@@ -905,30 +905,49 @@
     box-shadow: none;
   }
 
-  &--fire {
-    background: var(--color-set-4-bg);
-    border-color: var(--color-brand-highlight);
-  }
-
   &__super-star {
-    padding-left: var(--feed-content-offset);
-    text-align: center;
+    padding-left: var(--space-s);
     @media (max-width: 640px) {
       padding-left: 0;
     }
   }
 
-  // Same pill as on project card, same stylings
-  &__super-star-eyebrow {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 12px;
-    border-radius: 999px;
-    font-size: 1rem;
-    font-weight: 700;
-    white-space: nowrap;
+  &__super-star-title {
+    position: relative;
+    padding: 0 4px;
+
     background: var(--gradient-extra-highlight) center / cover no-repeat;
-    color: var(--color-set-1-bg);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+
+    font-family: "Playfair Display", "Times New Roman", Georgia, serif;
+    font-style: italic;
+    font-weight: 700;
+    font-size: var(--font-h2);
+
+    // underline with gradient
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 8px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--gradient-extra-highlight) center / cover no-repeat;
+    }
+  }
+
+  &__super-star-header {
+    padding-left: var(--space-s);
+  }
+
+  &__super-star-body {
+    padding-left: var(--space-s);
+    padding-bottom: var(--space-s);
+    font-size: calc(var(--font-size-s) * 1.2);
+    line-height: 1.4;
+    overflow-wrap: anywhere;
   }
 
   .like-button,
