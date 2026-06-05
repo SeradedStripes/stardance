@@ -118,7 +118,7 @@ module Certification
         req.headers["Content-Type"] = "application/json"
         req.options.timeout = 10
         req.body = {
-          model: "x-ai/grok-4.1-fast",
+          model: "google/gemini-2.5-flash-lite",
           messages: [
             { role: "user", content: prompt }
           ]
@@ -253,7 +253,7 @@ module Certification
     def extract_user_data(user)
       # Get address from most recent fulfilled shop order
       latest_order = user.shop_orders
-        .where.not(frozen_address: nil)
+        .where.not(frozen_address_ciphertext: nil)
         .where(aasm_state: "fulfilled")
         .order(fulfilled_at: :desc)
         .first
@@ -297,9 +297,7 @@ module Certification
 
         This project was initially ship certified by #{ship_certifier_name}.
 
-        Following this it was YSWS reviewed by #{reviewer_name}
-
-        who mentioned: #{ysws_justification}
+        Following this it was YSWS reviewed by #{reviewer_name}#{ysws_justification.present? ? "\n\nwho mentioned: #{ysws_justification}" : ""}
 
         and approved:
 
