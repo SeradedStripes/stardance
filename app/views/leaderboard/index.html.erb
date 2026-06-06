@@ -34,7 +34,6 @@
           <% end %>
         <% end %>
        </div>
-    </p>
     </header>
 
     <% if current_user && (@current_user_rank || @all_time_user_rank) %>
@@ -45,13 +44,11 @@
         <%= render "leaderboard/section",
                    title: "Current Balance",
                    users: @current_users,
-                   current_user_rank: @current_user_rank,
-                   value_method: :cached_balance %>
+                   value_method: :approx_balance %>
 
         <%= render "leaderboard/section",
                    title: "All-Time Highest",
                    users: @all_time_users,
-                   current_user_rank: @all_time_user_rank,
-                   value_method: :cached_total_earned %>
+                   value_method: :approx_total_earned %>
     </div>
 </main>

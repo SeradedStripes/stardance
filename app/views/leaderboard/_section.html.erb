@@ -1,4 +1,4 @@
-<%# locals: title:, users:, value_method:, current_user_rank: nil %>
+<%# locals: title:, users:, value_method: %>
 
 <section class="leaderboard-section">
   <header class="leaderboard-section__header">
@@ -7,8 +7,7 @@
   </header>
 
   <ol class="leaderboard-section__list">
-    <% users.each_with_index do |user, index| %>
-      <%= render "leaderboard/row", user: user, rank: index + 1, value_method: value_method %>
-    <% end %>
+    <%= render partial: "leaderboard/row", collection: users, as: :user,
+              locals: { value_method: value_method } %>
   </ol>
 </section>

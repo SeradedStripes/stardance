@@ -1,5 +1,7 @@
-<%# locals: user:, rank:, value_method:, is_current_user: false %>
-<li class="leaderboard-row leaderboard-row--rank-<%= rank %> <%= 'leaderboard-row--current' if local_assigns[:is_current_user] %>">
+<%# locals: user:, user_counter:, value_method: %>
+<% rank = user_counter %>
+<% is_current_user = current_user&.id == user.id %>
+<li class="leaderboard-row leaderboard-row--rank-<%= rank %> <%= 'leaderboard-row--current' if is_current_user %>">
   <span class="leaderboard-row__rank" aria-label="Rank <%= rank %>">#<%= rank %></span>
 
   <%= image_tag user.avatar,
@@ -10,10 +12,8 @@
     <p class="leaderboard-row__name">
       <%= link_to user.display_name, profile_path(user.display_name),
                   class: "leaderboard-row__name-link" %>
-      <% if local_assigns[:is_current_user] %>
-        <span class="leaderboard-row__you-badge">
-          YOU — <%= (user.preference&.leaderboard_optin) ? "opted in" : "opted out" %>
-        </span>
+      <% if is_current_user %>
+        <span class="leaderboard-row__you-badge">YOU</span>
       <% end %>
     </p>
     <p class="leaderboard-row__handle">@<%= user.display_name %></p>
