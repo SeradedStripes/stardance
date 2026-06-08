@@ -67,7 +67,7 @@ module Certification
 
       table = Norairrecord.table(api_key, base_id, tbl_name)
       record = table.all(filter: "{review_id} = '#{id}'").first
-      unified_record_id = record&.dig("Automation - YSWS Record ID").presence
+      unified_record_id = record&.[]("Automation - YSWS Record ID").presence
 
       update_column(:in_unified_db, unified_record_id) if unified_record_id.present? && in_unified_db != unified_record_id
     rescue Faraday::Error => e
