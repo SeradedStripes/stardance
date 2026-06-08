@@ -1,6 +1,5 @@
 <%
   decision = local_assigns.fetch(:decision) { post.postable }
-  project = local_assigns.fetch(:project) { post.project }
   approved = decision.approved?
   message = if approved
     "This project was vetted by Shipwrights and is now up for voting. You can ship again after making more updates."
