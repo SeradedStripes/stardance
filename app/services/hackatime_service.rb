@@ -20,7 +20,7 @@ class HackatimeService
     end
 
     def fetch_stats(hackatime_uid, start_date: START_DATE, end_date: nil, access_token: nil)
-      params = { features: "projects", start_date: start_date, test_param: true }
+      params = { features: "projects", start_date: start_date, test_param: true, no_ai_coding: false }
       params[:end_date] = end_date if end_date
 
       response = stats_request(hackatime_uid, params, access_token: access_token)
@@ -50,11 +50,13 @@ class HackatimeService
         start_date: start_date,
         test_param: true,
         total_seconds: true,
+        no_ai_coding: false,
         filter_by_project: Array(project_keys).join(",")
       }
       params[:end_date] = end_date if end_date
 
       response = stats_request(hackatime_uid, params, access_token: access_token)
+      Rails.logger.info(response.env.url)
 
       if response.success?
         JSON.parse(response.body)["total_seconds"].to_i
@@ -73,8 +75,19 @@ class HackatimeService
         if access_token.present?
           api_key = resolve_api_key(hackatime_uid, access_token)
           if api_key
-            return connection.get("users/my/stats", params) do |req|
+            response = connection.get("users/my/stats", params) do |req|
               req.headers["Authorization"] = "Bearer #{api_key}"
+            end
+            return response if response.success?
+
+            Rails.cache.delete("hackatime_api_key:#{hackatime_uid}")
+            fresh_key = fetch_api_key(access_token)
+            if fresh_key
+              Rails.cache.write("hackatime_api_key:#{hackatime_uid}", fresh_key, expires_in: 1.week)
+              response = connection.get("users/my/stats", params) do |req|
+                req.headers["Authorization"] = "Bearer #{fresh_key}"
+              end
+              return response if response.success?
             end
           end
         end

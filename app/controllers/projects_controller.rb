@@ -1,4 +1,6 @@
 class ProjectsController < ApplicationController
+  include TimelinePostPreloading
+
   # Mission + payout-votes render as discover-rail modules on the project page.
   # The expanded mission module also previews the next guide step.
   discover_rail_widgets :project_mission_expanded, :mission_browse, :ship_intro, :payout_votes,
@@ -30,7 +32,7 @@ class ProjectsController < ApplicationController
   end
 
   def prepare_project_show_context
-    @members = @project.users.to_a
+    @members = @project.users.where(banned: false).to_a
     @is_member = current_user && @members.include?(current_user)
     @active_nav_slug = @is_member ? "projects" : "home"
     @can_edit_project = @is_member && policy(@project).update?
@@ -75,13 +77,15 @@ class ProjectsController < ApplicationController
     load_posts = ->(include_deleted_devlogs: false) {
       scope = @project.posts
                        .visible_to(current_user)
-                       .includes(postable: [ :attachments_attachments ])
+                       .preload(:postable)
                        .order(created_at: :desc)
       unless include_deleted_devlogs
         scope = scope.joins("LEFT JOIN post_devlogs ON posts.postable_type = 'Post::Devlog' AND posts.postable_id = post_devlogs.id")
                      .where("posts.postable_type != 'Post::Devlog' OR post_devlogs.deleted_at IS NULL")
       end
-      scope.select { |post| post.postable.present? }
+      posts = scope.select { |post| post.postable.present? }
+      preload_timeline_postables(posts, project_context: true)
+      posts
     }
 
     @posts = if policy(@project).view_deleted_devlogs?
@@ -108,10 +112,11 @@ class ProjectsController < ApplicationController
                                       .uniq
       Mission.available
              .where.not(id: taken_mission_ids)
-             .with_attached_icon
+             .includes(:icon_attachment, :prerequisites)
              .order(featured_at: :desc)
-             .limit(12)
              .to_a
+             .select { |m| m.prerequisites_met_by?(current_user) }
+             .first(12)
     else
       []
     end
@@ -153,7 +158,9 @@ class ProjectsController < ApplicationController
       if is_owner &&
           latest_ship_event.present? &&
           latest_ship_event.certification_status == "approved" &&
-          latest_ship_event.payout.blank?
+          latest_ship_event.payout.blank? &&
+          latest_ship_event.mission_submission&.payout_path != "static_prize" &&
+          !latest_ship_event.mission_submission&.rejected?
 
         required = Post::ShipEvent::VOTES_REQUIRED_FOR_PAYOUT
         current = latest_ship_event.votes.payout_countable.count
@@ -207,9 +214,11 @@ class ProjectsController < ApplicationController
     authorize @project
     @missions = Mission.available
                        .where.not(id: missions_user_already_has_a_project_on)
-                       .includes(:icon_attachment, :banner_attachment)
+                       .includes(:icon_attachment, :banner_attachment, :prerequisites)
                        .order(featured_at: :desc)
-                       .limit(8)
+                       .to_a
+                       .select { |m| m.prerequisites_met_by?(current_user) }
+                       .first(8)
   end
 
   def missions_user_already_has_a_project_on
@@ -248,7 +257,7 @@ class ProjectsController < ApplicationController
 
       project_hours = @project.total_hackatime_hours
 
-      if (slug = params[:mission_slug].presence) && (mission = Mission.find_by(slug: slug))
+      if (slug = params[:mission_slug].presence) && (mission = Mission.find_by(slug: slug)) && mission.prerequisites_met_by?(current_user)
         @project.missions << mission
         attrs = {}
         if @project.title.blank? || @project.title == "Untitled"
@@ -357,7 +366,7 @@ class ProjectsController < ApplicationController
     follow = current_user.project_follows.build(project: @project)
     if follow.save
       @project.users.includes(:preference).each do |member|
-        if member.preference.send_notifications_for_new_followers && current_user.slack_id && member.slack_id
+        if member.preference&.send_notifications_for_new_followers && current_user.slack_id && member.slack_id
           SendSlackDmJob.perform_later(
             member.slack_id,
             "#{current_user.display_name} is now following your project #{@project.title}!",
@@ -391,7 +400,7 @@ class ProjectsController < ApplicationController
   def followers
     @project = Project.find(params[:id])
     authorize @project, :show?
-    @followers = @project.followers.order(:display_name)
+    @followers = @project.followers.where(banned: false).order(:display_name)
     render "users/followers", layout: false
   end
 
@@ -459,42 +468,15 @@ class ProjectsController < ApplicationController
     validate_url_not_dead(:readme_url, "Readme URL") if @project.readme_url.present? && @project.errors.empty?
   end
 
-  # these links block automated requests, but we're ok with just assuming they're good
-  ALLOWLISTED_DOMAINS = %w[
-    npmjs.com
-    crates.io
-    curseforge.com
-    makerworld.com
-    streamlit.app
-  ].freeze
-
   def validate_url_not_dead(attribute, name)
-    require "uri"
-    require "faraday"
-    require "faraday/follow_redirects"
-
     return unless @project.send(attribute).present?
 
     uri = URI.parse(@project.send(attribute))
+    status = @project.url_probe_status(@project.send(attribute), cache: false)
+    return if status.nil?
 
-    if ALLOWLISTED_DOMAINS.any? { |domain| uri.host&.end_with?(domain) }
-      return
-    end
-
-    conn = Faraday.new(
-      url: uri.to_s,
-      headers: { "User-Agent" => "Stardance project validator (https://stardance.hackclub.com/)" }
-    ) do |faraday|
-      faraday.response :follow_redirects, max_redirects: 3
-      faraday.adapter Faraday.default_adapter
-    end
-    response = conn.get() do |req|
-      req.options.timeout = 5
-      req.options.open_timeout = 5
-    end
-
-    unless (200..299).cover?(response.status)
-      @project.errors.add(attribute, "Your #{name} needs to return a 200 status. I got #{response.status}, is your code/website set to public!?!?")
+    unless (200..299).cover?(status)
+      @project.errors.add(attribute, "Your #{name} needs to return a 200 status. I got #{status}, is your code/website set to public!?!?")
     end
 
 
@@ -540,7 +522,9 @@ class ProjectsController < ApplicationController
 
   rescue URI::InvalidURIError
     @project.errors.add(attribute, "#{name} is not a valid URL")
-  rescue Faraday::ConnectionFailed => e
+  rescue SafeUrl::Error, SocketError, Errno::ECONNREFUSED,
+         Errno::EHOSTUNREACH, Net::OpenTimeout, Net::ReadTimeout,
+         OpenSSL::SSL::SSLError => e
     @project.errors.add(attribute, "Please make sure the URL is valid and reachable: #{e.message}")
   rescue StandardError => e
     @project.errors.add(attribute, "#{name} could not be verified (idk why, please let a admin know if this is happening a lot and your sure that the URL is valid): #{e.message}")
