@@ -8,6 +8,16 @@ class Project::TypeCheckJob < ApplicationJob
 
   def perform(project)
     result = SwAi::ProjectTypeService.new(project).call
-    project.update_column(:project_type, result.type) if result.ok && result.type.present?
+    return unless result.ok && result.type.present?
+
+    project.update_column(:project_type, result.type)
+    sync_type_to_gorse_later(project)
+  end
+
+  private
+
+  def sync_type_to_gorse_later(project)
+    project.sync_to_gorse_later
+    project.posts.of_ship_events.find_each(&:sync_to_gorse_later)
   end
 end
