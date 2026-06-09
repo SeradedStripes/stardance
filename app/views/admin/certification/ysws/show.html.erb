@@ -444,7 +444,7 @@
 
   <div style="height: 25px;"></div>
 
-  <% unless @review.in_unified_db? %>
+  <% unless @review.in_unified_db? || @review.returned_at? %>
     <!-- Action Buttons Section (Full Width) -->
     <section class="review-card actions-card" data-certification--ysws--review-sidebar-target="actionsCard">
       <div class="checklist-warning">
