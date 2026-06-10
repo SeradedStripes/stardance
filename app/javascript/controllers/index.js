@@ -106,6 +106,9 @@ application.register("discover-rail-search", DiscoverRailSearchController);
 import DismissableController from "./dismissable_controller";
 application.register("dismissable", DismissableController);
 
+import EventTimeController from "./event_time_controller";
+application.register("event-time", EventTimeController);
+
 import EmojiPickerController from "./emoji_picker_controller";
 application.register("emoji-picker", EmojiPickerController);
 
