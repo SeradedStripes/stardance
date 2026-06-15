@@ -304,6 +304,12 @@ application.register("username-availability", UsernameAvailabilityController);
 import VimeoPlayerController from "./vimeo_player_controller";
 application.register("vimeo-player", VimeoPlayerController);
 
+import VoteScorecardController from "./vote_scorecard_controller";
+application.register("vote-scorecard", VoteScorecardController);
+
+import VoteTelemetryController from "./vote_telemetry_controller";
+application.register("vote-telemetry", VoteTelemetryController);
+
 import WelcomeTourController from "./welcome_tour_controller";
 application.register("welcome-tour", WelcomeTourController);
 

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_11_210539) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_15_133745) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -619,15 +619,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_11_210539) do
   end
 
   create_table "post_ship_events", force: :cascade do |t|
-    t.float "base_hours"
     t.string "body"
-    t.boolean "bridge", default: false, null: false
     t.string "certification_status", default: "pending"
     t.datetime "created_at", null: false
     t.text "feedback_reason"
     t.string "feedback_video_url"
-    t.float "hours"
-    t.float "legacy_payout_deduction"
+    t.float "hours_at_payout"
+    t.float "hours_at_ship"
     t.float "multiplier"
     t.decimal "originality_median", precision: 5, scale: 2
     t.decimal "originality_percentile", precision: 5, scale: 2
@@ -649,7 +647,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_11_210539) do
     t.decimal "usability_median", precision: 5, scale: 2
     t.decimal "usability_percentile", precision: 5, scale: 2
     t.integer "votes_count", default: 0, null: false
-    t.integer "voting_scale_version", default: 2, null: false
   end
 
   create_table "post_views", force: :cascade do |t|
@@ -1368,16 +1365,46 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_11_210539) do
 
   create_table "vote_assignments", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.datetime "first_viewed_at"
+    t.datetime "last_viewed_at"
     t.bigint "ship_event_id", null: false
+    t.datetime "skipped_at"
     t.string "status", default: "assigned", null: false
+    t.datetime "submitted_at"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.integer "view_count", default: 0, null: false
     t.bigint "vote_id"
     t.index ["ship_event_id"], name: "index_vote_assignments_on_ship_event_id"
     t.index ["user_id", "ship_event_id"], name: "index_vote_assignments_on_user_id_and_ship_event_id", unique: true
     t.index ["user_id", "status"], name: "index_vote_assignments_on_user_id_and_status"
     t.index ["user_id"], name: "index_vote_assignments_on_user_id"
     t.index ["vote_id"], name: "index_vote_assignments_on_vote_id"
+  end
+
+  create_table "vote_events", force: :cascade do |t|
+    t.bigint "ahoy_visit_id"
+    t.datetime "created_at", null: false
+    t.string "event_type", null: false
+    t.string "ip"
+    t.datetime "occurred_at", null: false
+    t.bigint "project_id"
+    t.jsonb "properties", default: {}, null: false
+    t.bigint "ship_event_id"
+    t.string "source", default: "server", null: false
+    t.datetime "updated_at", null: false
+    t.text "user_agent"
+    t.bigint "user_id", null: false
+    t.bigint "vote_assignment_id"
+    t.bigint "vote_id"
+    t.index ["ahoy_visit_id"], name: "index_vote_events_on_ahoy_visit_id"
+    t.index ["event_type", "occurred_at"], name: "index_vote_events_on_event_type_and_occurred_at"
+    t.index ["project_id"], name: "index_vote_events_on_project_id"
+    t.index ["properties"], name: "index_vote_events_on_properties", opclass: :jsonb_path_ops, using: :gin
+    t.index ["ship_event_id"], name: "index_vote_events_on_ship_event_id"
+    t.index ["user_id"], name: "index_vote_events_on_user_id"
+    t.index ["vote_assignment_id"], name: "index_vote_events_on_vote_assignment_id"
+    t.index ["vote_id"], name: "index_vote_events_on_vote_id"
   end
 
   create_table "vote_reason_embeddings", force: :cascade do |t|
@@ -1531,6 +1558,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_11_210539) do
   add_foreign_key "vote_assignments", "post_ship_events", column: "ship_event_id"
   add_foreign_key "vote_assignments", "users"
   add_foreign_key "vote_assignments", "votes"
+  add_foreign_key "vote_events", "post_ship_events", column: "ship_event_id"
+  add_foreign_key "vote_events", "projects"
+  add_foreign_key "vote_events", "users"
+  add_foreign_key "vote_events", "vote_assignments"
+  add_foreign_key "vote_events", "votes"
   add_foreign_key "votes", "post_ship_events", column: "ship_event_id"
   add_foreign_key "votes", "projects"
   add_foreign_key "votes", "users"

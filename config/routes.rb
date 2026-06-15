@@ -477,6 +477,13 @@ Rails.application.routes.draw do
   resources :votes, only: [ :new, :create ]
   namespace :votes do
     resource :skip, only: :create
+    resources :assignments, only: [] do
+      member do
+        get :demo
+        get :repo
+      end
+    end
+    resources :events, only: :create
   end
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.

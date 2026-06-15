@@ -118,15 +118,6 @@ class Post < ApplicationRecord
       end
     end
 
-    # For multiple types, use .with to create a CTE with UNION ALL:
-    #   Post.with(
-    #     available_posts: [
-    #       Post.of_devlogs(join: true).where(post_devlogs: { tutorial: false }),
-    #       Post.of_ship_events(join: true),
-    #       Post.of_fire_events(join: true)
-    #     ]
-    #   ).from("available_posts AS posts")
-
     private
 
     def increment_devlogs_count
