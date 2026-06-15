@@ -254,7 +254,7 @@ class Project < ApplicationRecord
   # toggle submits an empty string when Software is selected; coerce it to nil
   # so the column actually clears and passes the inclusion validation (which
   # allows nil, but not "").
-  normalizes :hardware_stage, with: -> (value) { value.presence }
+  normalizes :hardware_stage, with: ->(value) { value.presence }
   validates :hardware_stage, inclusion: { in: HARDWARE_STAGES }, allow_nil: true
   validate :hardware_stage_locked_after_funding_request
   validate :required_shipping_fields_locked_while_pending_review
