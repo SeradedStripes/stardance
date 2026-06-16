@@ -357,7 +357,7 @@
                 <% if policy(@project).destroy? %>
                   <button type="button"
                           class="project-show__pill project-show__pill--delete"
-                          onclick="document.getElementById('delete-project-modal-<%= @project.id %>').showModal()">
+                          onclick="document.getElementById('delete-project-modal-' + <%= @project.id.to_json %>).showModal()">
                     Delete project
                   </button>
                 <% end %>
@@ -917,7 +917,7 @@
         <div class="delete-project-modal__actions">
           <button type="button"
                   class="delete-project-modal__btn delete-project-modal__btn--secondary"
-                  onclick="document.getElementById('delete-project-modal-<%= @project.id %>').close()">
+                  onclick="document.getElementById('delete-project-modal-' + <%= @project.id.to_json %>).close()">
             Cancel
           </button>
           <%= button_to project_path(@project),
