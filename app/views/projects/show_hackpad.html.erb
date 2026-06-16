@@ -354,6 +354,14 @@
                               data: { turbo_frame: "project_hero" } %>
                 <% end %>
 
+                <% if policy(@project).destroy? %>
+                  <button type="button"
+                          class="project-show__pill project-show__pill--delete"
+                          onclick="document.getElementById('delete-project-modal-<%= @project.id %>').showModal()">
+                    Delete project
+                  </button>
+                <% end %>
+
                 <% if current_user && !is_member %>
                   <%= link_to (viewer_follow ? "Following" : "Follow"),
                               (viewer_follow ? unfollow_project_path(@project) : follow_project_path(@project)),
@@ -895,4 +903,31 @@
       <p class="followers-modal__loading">Loading…</p>
     </div>
   </dialog>
+
+  <% if policy(@project).destroy? %>
+    <dialog id="delete-project-modal-<%= @project.id %>"
+            class="delete-project-modal"
+            data-controller="modal"
+            aria-labelledby="delete-project-modal-<%= @project.id %>-title">
+      <div class="delete-project-modal__body">
+        <h3 id="delete-project-modal-<%= @project.id %>-title" class="delete-project-modal__title">Delete your project?</h3>
+        <p class="delete-project-modal__text">
+          This will <strong>hide your project from everyone</strong>. You won't be able to post new devlogs or comments, and your project won't appear on your profile.
+        </p>
+        <div class="delete-project-modal__actions">
+          <button type="button"
+                  class="delete-project-modal__btn delete-project-modal__btn--secondary"
+                  onclick="document.getElementById('delete-project-modal-<%= @project.id %>').close()">
+            Cancel
+          </button>
+          <%= button_to project_path(@project),
+                        method: :delete,
+                        class: "delete-project-modal__btn delete-project-modal__btn--destructive",
+                        data: { turbo: false } do %>
+            Yes, delete my project
+          <% end %>
+        </div>
+      </div>
+    </dialog>
+  <% end %>
 </div>
