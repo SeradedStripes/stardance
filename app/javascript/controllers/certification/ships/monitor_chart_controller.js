@@ -1,0 +1,461 @@
+import { Controller } from "@hotwired/stimulus";
+import Chart from "chart.js/auto";
+
+const PALETTE = [
+  "#81FFFF", // cyan
+  "#FFE564", // yellow
+  "#FF8D9D", // salmon
+  "#86efac", // green
+  "#FFD598", // peach
+  "#bef264", // lime
+  "#F472B6", // hot pink
+  "#FFF8D5", // cream
+  "#2DD4BF", // teal
+  "#FB923C", // orange
+  "#A7F3D0", // mint green
+  "#FDE68A", // gold
+];
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+export default class extends Controller {
+  static targets = [
+    "queueSize", "medianWait", "net", "throughput", "verdict", "rate", "participation",
+    "reviewerPicker", "reviewerTotals",
+    "reviewerDecisions", "reviewerReturned", "reviewerApproved", "reviewerRejections",
+  ];
+  static values = { data: Array, reviewerData: Array };
+
+  connect() {
+    this.charts            = [];
+    this.selectedReviewers = new Set();
+    this.reviewerCharts    = [];
+
+    const cfg = this.baseCfg();
+
+    if (this.hasDataValue && this.dataValue.length > 0) {
+      this.renderActivityCharts(cfg);
+    }
+
+    if (this.hasReviewerDataValue && this.reviewerDataValue.length > 0) {
+      this.renderReviewerPicker();
+      this.initReviewerCharts(cfg);
+    }
+  }
+
+  baseCfg() {
+    const gridColor = "rgba(255,255,255,0.06)";
+    const tickFont  = { family: "var(--font-family-sans)", size: 10 };
+    const tickColor = "rgba(255,255,255,0.45)";
+    return {
+      gridColor,
+      xScale: {
+        ticks: { color: tickColor, font: tickFont, maxTicksLimit: 10 },
+        grid:  { color: gridColor },
+      },
+      yScale: {
+        ticks: { color: tickColor, font: tickFont, precision: 0 },
+        grid:  { color: gridColor },
+      },
+      legend: {
+        labels: {
+          color:    "rgba(255,255,255,0.7)",
+          font:     { family: "var(--font-family-sans)", size: 11 },
+          boxWidth: 12,
+        },
+      },
+      tooltip: { mode: "index", intersect: false },
+    };
+  }
+
+  renderActivityCharts({ xScale, yScale, gridColor, legend, tooltip }) {
+    const data    = this.dataValue;
+    const labels  = data.map((d) => d.date);
+    const netData = data.map((d) => d.approved + d.returned - d.submitted);
+
+    this.charts.push(
+      new Chart(this.queueSizeTarget, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: "Queue size",
+            data: data.map((d) => d.queue_size),
+            borderColor: "#FFD598",
+            backgroundColor: "rgba(255,213,152,0.12)",
+            fill: true, tension: 0.3, pointRadius: 2,
+          }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: legend.labels }, tooltip },
+          scales: { x: xScale, y: { ...yScale, min: 0 } },
+        },
+      }),
+
+      new Chart(this.medianWaitTarget, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: "Median wait (hours)",
+            data: data.map((d) => d.median_wait_hours ?? null),
+            borderColor: "#EBB7FF",
+            backgroundColor: "rgba(235,183,255,0.08)",
+            fill: true, tension: 0.3, pointRadius: 2, spanGaps: true,
+          }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: legend.labels },
+            tooltip: {
+              ...tooltip,
+              callbacks: {
+                label: (ctx) => {
+                  const h = ctx.parsed.y;
+                  if (h === null) return "  no data";
+                  const d = Math.floor(h / 24), rem = Math.round(h % 24);
+                  return d > 0 ? `  ${d}d ${rem}h` : `  ${rem}h`;
+                },
+              },
+            },
+          },
+          scales: {
+            x: xScale,
+            y: { ...yScale, min: 0, ticks: { ...yScale.ticks, callback: (v) => `${v}h` } },
+          },
+        },
+      }),
+
+      new Chart(this.netTarget, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: "Net (decisions − submissions)",
+            data: netData,
+            borderColor: "#81FFFF",
+            borderWidth: 1.5,
+            pointRadius: 2,
+            tension: 0.3,
+            fill: {
+              target: "origin",
+              above: "rgba(129,255,255,0.15)",
+              below: "rgba(255,213,152,0.2)",
+            },
+          }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: legend.labels },
+            tooltip: {
+              ...tooltip,
+              callbacks: {
+                label: (ctx) => {
+                  const v = ctx.parsed.y;
+                  return `  Net: ${v >= 0 ? "+" : ""}${v}`;
+                },
+              },
+            },
+          },
+          scales: {
+            x: xScale,
+            y: {
+              ...yScale,
+              grid: {
+                color: (ctx) =>
+                  ctx.tick.value === 0 ? "rgba(255,255,255,0.25)" : gridColor,
+              },
+            },
+          },
+        },
+      }),
+
+      new Chart(this.throughputTarget, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Decisions",
+              data: data.map((d) => d.approved + d.returned),
+              borderColor: "#81FFFF",
+              backgroundColor: "rgba(129,255,255,0.08)",
+              fill: true, tension: 0.3, pointRadius: 2,
+            },
+            {
+              label: "Submitted",
+              data: data.map((d) => d.submitted),
+              borderColor: "#EBB7FF",
+              backgroundColor: "rgba(235,183,255,0.08)",
+              fill: true, tension: 0.3, pointRadius: 2,
+            },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: legend.labels }, tooltip },
+          scales: { x: xScale, y: yScale },
+        },
+      }),
+
+      new Chart(this.verdictTarget, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Approved",
+              data: data.map((d) => d.approved),
+              borderColor: "#81FFFF",
+              backgroundColor: "rgba(129,255,255,0.08)",
+              fill: true, tension: 0.3, pointRadius: 2,
+            },
+            {
+              label: "Returned",
+              data: data.map((d) => d.returned),
+              borderColor: "#FFD598",
+              backgroundColor: "rgba(255,213,152,0.08)",
+              fill: true, tension: 0.3, pointRadius: 2,
+            },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: legend.labels }, tooltip },
+          scales: { x: xScale, y: yScale },
+        },
+      }),
+
+      new Chart(this.rateTarget, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: "Rejection rate",
+            data: data.map((d) => {
+              const total = d.approved + d.returned;
+              return total > 0 ? parseFloat(((d.returned / total) * 100).toFixed(1)) : null;
+            }),
+            borderColor: "#FFE564",
+            backgroundColor: "rgba(255,229,100,0.08)",
+            fill: true, tension: 0.3, pointRadius: 2, spanGaps: true,
+          }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: legend.labels },
+            tooltip: {
+              ...tooltip,
+              callbacks: { label: (ctx) => `  ${ctx.parsed.y !== null ? ctx.parsed.y + "%" : "no data"}` },
+            },
+          },
+          scales: {
+            x: xScale,
+            y: { ...yScale, min: 0, max: 100, ticks: { ...yScale.ticks, callback: (v) => `${v}%` } },
+          },
+        },
+      }),
+
+      new Chart(this.participationTarget, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: "Reviewers active",
+            data: data.map((d) => d.unique_reviewers),
+            borderColor: "#86efac",
+            backgroundColor: "rgba(134,239,172,0.1)",
+            fill: true, tension: 0.3, pointRadius: 2,
+          }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: legend.labels }, tooltip },
+          scales: {
+            x: xScale,
+            y: { ...yScale, min: 0, ticks: { ...yScale.ticks, precision: 0 } },
+          },
+        },
+      }),
+    );
+  }
+
+  renderReviewerPicker() {
+    const reviewers = this.reviewerDataValue;
+    const wrapper   = this.reviewerPickerTarget;
+
+    const dropdown = document.createElement("div");
+    dropdown.className = "ship-monitor__reviewer-dropdown";
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "ship-monitor__reviewer-dropdown-btn";
+    btn.innerHTML = '<span data-label>Add reviewer to compare…</span><span class="ship-monitor__reviewer-dropdown-arrow">▾</span>';
+
+    const panel = document.createElement("div");
+    panel.className = "ship-monitor__reviewer-dropdown-panel";
+    panel.hidden = true;
+
+    const search = document.createElement("input");
+    search.type = "text";
+    search.placeholder = "Search reviewers…";
+    search.className = "ship-monitor__reviewer-search";
+    panel.appendChild(search);
+
+    const list = document.createElement("ul");
+    list.className = "ship-monitor__reviewer-list";
+
+    reviewers.forEach((r, i) => {
+      const color = PALETTE[i % PALETTE.length];
+      const li    = document.createElement("li");
+      const label = document.createElement("label");
+      label.className = "ship-monitor__reviewer-option";
+
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+
+      cb.addEventListener("change", () => {
+        if (cb.checked) {
+          this.selectedReviewers.add(r.name);
+          label.classList.add("is-checked");
+          label.style.color = color;
+        } else {
+          this.selectedReviewers.delete(r.name);
+          label.classList.remove("is-checked");
+          label.style.color = "";
+        }
+        this.updateDropdownLabel(btn);
+        this.updateReviewerCharts();
+      });
+
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(r.name));
+      li.appendChild(label);
+      list.appendChild(li);
+    });
+
+    panel.appendChild(list);
+    dropdown.appendChild(btn);
+    dropdown.appendChild(panel);
+    wrapper.appendChild(dropdown);
+
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      panel.hidden = !panel.hidden;
+      if (!panel.hidden) search.focus();
+    });
+
+    search.addEventListener("input", () => {
+      const q = search.value.toLowerCase();
+      [...list.children].forEach((li) => {
+        li.hidden = !li.querySelector("label").textContent.toLowerCase().includes(q);
+      });
+    });
+
+    this.closeDropdownFn = (e) => {
+      if (!dropdown.contains(e.target)) panel.hidden = true;
+    };
+    document.addEventListener("click", this.closeDropdownFn);
+  }
+
+  updateDropdownLabel(btn) {
+    const count = this.selectedReviewers.size;
+    btn.querySelector("[data-label]").textContent =
+      count === 0 ? "Add reviewer to compare…" : `${count} reviewer${count !== 1 ? "s" : ""} selected`;
+  }
+
+  initReviewerCharts({ xScale, yScale, legend, tooltip }) {
+    const labels = this.dataValue.map((d) => d.date);
+
+    const lineOpts = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { labels: legend.labels }, tooltip },
+      scales: { x: xScale, y: { ...yScale, min: 0 } },
+    };
+
+    this.reviewerCharts = [
+      new Chart(this.reviewerDecisionsTarget,  { type: "line", data: { labels, datasets: [] }, options: lineOpts }),
+      new Chart(this.reviewerReturnedTarget,   { type: "line", data: { labels, datasets: [] }, options: lineOpts }),
+      new Chart(this.reviewerApprovedTarget,   { type: "line", data: { labels, datasets: [] }, options: lineOpts }),
+      new Chart(this.reviewerRejectionsTarget, { type: "line", data: { labels, datasets: [] }, options: lineOpts }),
+    ];
+
+    this.charts.push(...this.reviewerCharts);
+  }
+
+  updateReviewerCharts() {
+    const reviewers = this.reviewerDataValue;
+    const selected  = reviewers.filter((r) => this.selectedReviewers.has(r.name));
+
+    const lineDatasets = (field) =>
+      selected.map((r) => {
+        const i     = reviewers.indexOf(r);
+        const color = PALETTE[i % PALETTE.length];
+        return {
+          label:            r.name,
+          data:             r.data.map((d) => d[field] > 0 ? d[field] : null),
+          borderColor:      color,
+          borderWidth:      1.5,
+          pointRadius:      0,
+          pointHoverRadius: 4,
+          tension:          0.25,
+          spanGaps:         true,
+          fill:             false,
+        };
+      });
+
+    const [decisionsChart, returnedChart, approvedChart, rejectionsChart] = this.reviewerCharts;
+    decisionsChart.data.datasets  = lineDatasets("total");
+    returnedChart.data.datasets   = lineDatasets("returned");
+    approvedChart.data.datasets   = lineDatasets("approved");
+    rejectionsChart.data.datasets = lineDatasets("returned");
+    decisionsChart.update();
+    returnedChart.update();
+    approvedChart.update();
+    rejectionsChart.update();
+
+    this.renderReviewerTotals(selected, reviewers);
+  }
+
+  renderReviewerTotals(selected, allReviewers) {
+    const el = this.reviewerTotalsTarget;
+    el.innerHTML = "";
+    if (selected.length === 0) return;
+
+    selected.forEach((r) => {
+      const i        = allReviewers.indexOf(r);
+      const color    = PALETTE[i % PALETTE.length];
+      const approved = r.data.reduce((s, d) => s + d.approved, 0);
+      const returned = r.data.reduce((s, d) => s + d.returned, 0);
+      const total    = approved + returned;
+      const rate     = total > 0 ? ((returned / total) * 100).toFixed(1) : "—";
+
+      const row = document.createElement("div");
+      row.className = "ship-monitor__reviewer-total";
+      row.innerHTML = `
+        <span class="ship-monitor__reviewer-total-name" style="color:${color}">${r.name}</span>
+        <span class="ship-monitor__reviewer-total-stat">${approved.toLocaleString()} approved</span>
+        <span class="ship-monitor__reviewer-total-sep">·</span>
+        <span class="ship-monitor__reviewer-total-stat">${returned.toLocaleString()} returned</span>
+        <span class="ship-monitor__reviewer-total-sep">·</span>
+        <span class="ship-monitor__reviewer-total-rate">${rate}% rejection</span>
+      `;
+      el.appendChild(row);
+    });
+  }
+
+  disconnect() {
+    this.charts.forEach((c) => c.destroy());
+    if (this.closeDropdownFn) document.removeEventListener("click", this.closeDropdownFn);
+  }
+}

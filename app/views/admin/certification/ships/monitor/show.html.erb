@@ -8,114 +8,241 @@
       <h1>Shipwright monitor</h1>
     </header>
 
-    <section class="ship-monitor__section">
+    <nav class="ship-monitor__nav" data-controller="certification--ships--monitor-nav">
+      <a href="#section-queue"
+         class="ship-monitor__nav-link"
+         data-certification--ships--monitor-nav-target="link"
+         data-action="click->certification--ships--monitor-nav#scrollTo">
+        <span class="ship-monitor__nav-label">Queue health</span>
+      </a>
+      <a href="#section-activity"
+         class="ship-monitor__nav-link"
+         data-certification--ships--monitor-nav-target="link"
+         data-action="click->certification--ships--monitor-nav#scrollTo">
+        <span class="ship-monitor__nav-label">Activity</span>
+      </a>
+      <a href="#section-reviewers"
+         class="ship-monitor__nav-link"
+         data-certification--ships--monitor-nav-target="link"
+         data-action="click->certification--ships--monitor-nav#scrollTo">
+        <span class="ship-monitor__nav-label">Reviewer comparison</span>
+      </a>
+    </nav>
+
+    <section class="ship-monitor__section" id="section-queue">
       <h2 class="ship-monitor__section-title">Queue health</h2>
-      <div class="ship-monitor__metrics">
-        <% over_target = @stats[:pending] - @stats[:queue_target] %>
-        <div class="ship-monitor__metric">
-          <span class="ship-monitor__metric-label">In queue</span>
-          <span class="ship-monitor__metric-value <%= over_target > 0 ? 'is-negative' : 'is-positive' %>">
-            <%= @stats[:pending] %>
-          </span>
-          <span class="ship-monitor__metric-hint">
-            <%= over_target > 0 ? "#{over_target} over target of #{@stats[:queue_target]}" : "at or under target" %>
-          </span>
+
+      <div class="ship-monitor__stats">
+        <div class="ship-monitor__stats-group">
+          <p class="ship-monitor__stats-group-label">Queue</p>
+
+          <% over_target = @stats[:pending] - @stats[:queue_target] %>
+          <div class="ship-monitor__stat-row">
+            <span class="ship-monitor__stat-label">In queue</span>
+            <span class="ship-monitor__stat-value <%= over_target > 0 ? 'is-negative' : 'is-positive' %>"><%= @stats[:pending] %></span>
+            <span class="ship-monitor__stat-hint"><%= over_target > 0 ? "#{over_target} over target of #{@stats[:queue_target]}" : "at or under target" %></span>
+          </div>
+
+          <div class="ship-monitor__stat-row">
+            <span class="ship-monitor__stat-label">Overdue</span>
+            <span class="ship-monitor__stat-value <%= @stats[:overdue_pending] > 0 ? 'is-negative' : 'is-positive' %>"><%= @stats[:overdue_pending] %></span>
+            <span class="ship-monitor__stat-hint">past <%= @stats[:sla_days] %>-day SLA</span>
+          </div>
+
+          <div class="ship-monitor__stat-row">
+            <span class="ship-monitor__stat-label">Median wait</span>
+            <% if @stats[:median_pending_wait_hours] %>
+              <span class="ship-monitor__stat-value"><%= format_seconds((@stats[:median_pending_wait_hours] * 3600).round, include_days: true) %></span>
+              <span class="ship-monitor__stat-hint">pending ships</span>
+            <% else %>
+              <span class="ship-monitor__stat-value is-positive">—</span>
+              <span class="ship-monitor__stat-hint">queue clear</span>
+            <% end %>
+          </div>
+
+          <div class="ship-monitor__stat-row">
+            <span class="ship-monitor__stat-label">Oldest waiting</span>
+            <% if @stats[:oldest_pending] %>
+              <%= link_to time_ago_in_words(@stats[:oldest_pending].created_at),
+                    admin_certification_ship_path(@stats[:oldest_pending]),
+                    class: "ship-monitor__stat-value is-negative ship-monitor__link" %>
+            <% else %>
+              <span class="ship-monitor__stat-value is-positive">—</span>
+              <span class="ship-monitor__stat-hint">queue clear</span>
+            <% end %>
+          </div>
         </div>
 
-        <div class="ship-monitor__metric">
-          <span class="ship-monitor__metric-label">Overdue</span>
-          <span class="ship-monitor__metric-value <%= @stats[:overdue_pending] > 0 ? 'is-negative' : 'is-positive' %>">
-            <%= @stats[:overdue_pending] %>
-          </span>
-          <span class="ship-monitor__metric-hint">past <%= @stats[:sla_days] %>-day SLA</span>
+        <div class="ship-monitor__stats-group">
+          <p class="ship-monitor__stats-group-label">All time</p>
+
+          <div class="ship-monitor__stat-row">
+            <span class="ship-monitor__stat-label">Total judged</span>
+            <span class="ship-monitor__stat-value"><%= number_with_delimiter(@stats[:decided]) %></span>
+          </div>
+
+          <div class="ship-monitor__stat-row">
+            <span class="ship-monitor__stat-label">Approved</span>
+            <span class="ship-monitor__stat-value"><%= number_with_delimiter(@stats[:approved]) %></span>
+            <span class="ship-monitor__stat-hint"><%= @stats[:approval_rate] ? "#{@stats[:approval_rate]}% rate" : "—" %></span>
+          </div>
+
+          <div class="ship-monitor__stat-row">
+            <span class="ship-monitor__stat-label">Rejected</span>
+            <span class="ship-monitor__stat-value"><%= number_with_delimiter(@stats[:returned]) %></span>
+            <% if @stats[:approval_rate] %><span class="ship-monitor__stat-hint"><%= (100 - @stats[:approval_rate]).round(1) %>% rate</span><% end %>
+          </div>
+
+          <div class="ship-monitor__stat-row">
+            <span class="ship-monitor__stat-label">Avg time to decision</span>
+            <% if @stats[:avg_decision_hours] %>
+              <span class="ship-monitor__stat-value"><%= format_seconds((@stats[:avg_decision_hours] * 3600).round, include_days: true) %></span>
+              <span class="ship-monitor__stat-hint">submission → verdict</span>
+            <% else %>
+              <span class="ship-monitor__stat-value">—</span>
+              <span class="ship-monitor__stat-hint">no decisions yet</span>
+            <% end %>
+          </div>
         </div>
 
-        <div class="ship-monitor__metric">
-          <span class="ship-monitor__metric-label">Oldest waiting</span>
-          <% if @stats[:oldest_pending] %>
-            <span class="ship-monitor__metric-value is-negative">
-              <%= time_ago_in_words(@stats[:oldest_pending].created_at) %>
-            </span>
-            <span class="ship-monitor__metric-hint">
-              <%= link_to "##{@stats[:oldest_pending].id}", admin_certification_ship_path(@stats[:oldest_pending]),
-                    class: "ship-monitor__link" %>
-            </span>
-          <% else %>
-            <span class="ship-monitor__metric-value is-positive">—</span>
-            <span class="ship-monitor__metric-hint">queue clear</span>
-          <% end %>
-        </div>
-
-        <div class="ship-monitor__metric">
-          <span class="ship-monitor__metric-label">Reviewed today</span>
-          <span class="ship-monitor__metric-value">
-            <%= @stats[:decisions_today] %>
-          </span>
-          <span class="ship-monitor__metric-hint"><%= @stats[:new_today] %> received</span>
-        </div>
-
-        <div class="ship-monitor__metric">
-          <span class="ship-monitor__metric-label">This week</span>
-          <span class="ship-monitor__metric-value <%= @stats[:decisions_this_week] >= @stats[:new_this_week] ? 'is-positive' : 'is-negative' %>">
-            <%= @stats[:decisions_this_week] %>
-          </span>
-          <span class="ship-monitor__metric-hint"><%= @stats[:new_this_week] %> received</span>
-        </div>
-
-        <div class="ship-monitor__metric">
-          <span class="ship-monitor__metric-label">All-time rate</span>
-          <span class="ship-monitor__metric-value">
-            <%= @stats[:approval_rate] ? "#{@stats[:approval_rate]}%" : "—" %>
-          </span>
-          <span class="ship-monitor__metric-hint">
-            <%= @stats[:approved] %> approved · <%= @stats[:returned] %> returned
-          </span>
-        </div>
       </div>
     </section>
 
-    <section class="ship-monitor__section">
-      <h2 class="ship-monitor__section-title">Reviewer performance</h2>
+    <div data-controller="certification--ships--monitor-chart"
+         data-certification--ships--monitor-chart-data-value="<%= @chart_data %>"
+         data-certification--ships--monitor-chart-reviewer-data-value="<%= @reviewer_chart_data %>">
 
-      <% if @reviewers.empty? %>
-        <div class="ship-monitor__empty">No completed reviews yet.</div>
-      <% else %>
-        <div class="ship-monitor__table-wrap">
-          <table class="ship-monitor__table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Reviewer</th>
-                <th>Today</th>
-                <th>This week</th>
-                <th>Approved</th>
-                <th>Returned</th>
-                <th>Total</th>
-                <th>Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% @reviewers.each_with_index do |r, i| %>
-                <% rate = r.total > 0 ? (r.approved_count * 100.0 / r.total).round : 0 %>
-                <tr>
-                  <td class="ship-monitor__cell-rank"><%= i + 1 %></td>
-                  <td class="ship-monitor__cell-name"><%= r.display_name %></td>
-                  <td class="ship-monitor__cell-num"><%= r.today_count %></td>
-                  <td class="ship-monitor__cell-num"><%= r.week_count %></td>
-                  <td class="ship-monitor__cell-num">
-                    <span class="status-pill status-pill--approved"><%= r.approved_count %></span>
-                  </td>
-                  <td class="ship-monitor__cell-num">
-                    <span class="status-pill status-pill--returned"><%= r.returned_count %></span>
-                  </td>
-                  <td class="ship-monitor__cell-num ship-monitor__cell-num--bold"><%= r.total %></td>
-                  <td class="ship-monitor__cell-num"><%= rate %>%</td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
+      <section class="ship-monitor__section" id="section-activity">
+        <h2 class="ship-monitor__section-title">Activity · last 30 days</h2>
+        <div class="ship-monitor__charts">
+
+          <div class="ship-monitor__chart ship-monitor__chart--full">
+            <div class="ship-monitor__chart-header">
+              <p class="ship-monitor__chart-title">Queue size</p>
+              <span class="ship-monitor__chart-tip" data-tip="Pending ships at end of each day — all submissions not yet decided.">?</span>
+            </div>
+            <div class="ship-monitor__chart-body">
+              <canvas data-certification--ships--monitor-chart-target="queueSize"></canvas>
+            </div>
+          </div>
+
+          <div class="ship-monitor__chart">
+            <div class="ship-monitor__chart-header">
+              <p class="ship-monitor__chart-title">Median wait</p>
+              <span class="ship-monitor__chart-tip" data-tip="Median hours from submission to verdict for ships decided that day. Half took longer, half shorter.">?</span>
+            </div>
+            <div class="ship-monitor__chart-body">
+              <canvas data-certification--ships--monitor-chart-target="medianWait"></canvas>
+            </div>
+          </div>
+
+          <div class="ship-monitor__chart">
+            <div class="ship-monitor__chart-header">
+              <p class="ship-monitor__chart-title">Waterline</p>
+              <span class="ship-monitor__chart-tip" data-tip="Decisions minus submissions per day. Above zero = queue shrinking. Below zero = queue growing.">?</span>
+            </div>
+            <div class="ship-monitor__chart-body">
+              <canvas data-certification--ships--monitor-chart-target="net"></canvas>
+            </div>
+          </div>
+
+          <div class="ship-monitor__chart">
+            <div class="ship-monitor__chart-header">
+              <p class="ship-monitor__chart-title">Throughput</p>
+              <span class="ship-monitor__chart-tip" data-tip="Total decisions made vs new ships submitted each day.">?</span>
+            </div>
+            <div class="ship-monitor__chart-body">
+              <canvas data-certification--ships--monitor-chart-target="throughput"></canvas>
+            </div>
+          </div>
+
+          <div class="ship-monitor__chart">
+            <div class="ship-monitor__chart-header">
+              <p class="ship-monitor__chart-title">Verdicts</p>
+              <span class="ship-monitor__chart-tip" data-tip="Approvals and returns split by day.">?</span>
+            </div>
+            <div class="ship-monitor__chart-body">
+              <canvas data-certification--ships--monitor-chart-target="verdict"></canvas>
+            </div>
+          </div>
+
+          <div class="ship-monitor__chart">
+            <div class="ship-monitor__chart-header">
+              <p class="ship-monitor__chart-title">Rejection rate</p>
+              <span class="ship-monitor__chart-tip" data-tip="Returns as a percentage of total decisions per day. Returns ÷ (approvals + returns) × 100.">?</span>
+            </div>
+            <div class="ship-monitor__chart-body">
+              <canvas data-certification--ships--monitor-chart-target="rate"></canvas>
+            </div>
+          </div>
+
+          <div class="ship-monitor__chart">
+            <div class="ship-monitor__chart-header">
+              <p class="ship-monitor__chart-title">Active reviewers</p>
+              <span class="ship-monitor__chart-tip" data-tip="Distinct reviewers who made at least one decision that day.">?</span>
+            </div>
+            <div class="ship-monitor__chart-body">
+              <canvas data-certification--ships--monitor-chart-target="participation"></canvas>
+            </div>
+          </div>
+
         </div>
-      <% end %>
-    </section>
+      </section>
+
+      <section class="ship-monitor__section" id="section-reviewers">
+        <h2 class="ship-monitor__section-title">Reviewer comparison · last 30 days</h2>
+        <% if @reviewer_chart_data == "[]" %>
+          <div class="ship-monitor__empty">No reviewer activity in the last 30 days.</div>
+        <% else %>
+          <div class="ship-monitor__reviewer-picker" data-certification--ships--monitor-chart-target="reviewerPicker"></div>
+          <div class="ship-monitor__reviewer-totals" data-certification--ships--monitor-chart-target="reviewerTotals"></div>
+          <div class="ship-monitor__charts">
+
+            <div class="ship-monitor__chart">
+              <div class="ship-monitor__chart-header">
+                <p class="ship-monitor__chart-title">Decisions</p>
+                <span class="ship-monitor__chart-tip" data-tip="Total decisions (approvals + returns) per reviewer per day.">?</span>
+              </div>
+              <div class="ship-monitor__chart-body">
+                <canvas data-certification--ships--monitor-chart-target="reviewerDecisions"></canvas>
+              </div>
+            </div>
+
+            <div class="ship-monitor__chart">
+              <div class="ship-monitor__chart-header">
+                <p class="ship-monitor__chart-title">Returns</p>
+                <span class="ship-monitor__chart-tip" data-tip="Ships returned for changes per reviewer per day.">?</span>
+              </div>
+              <div class="ship-monitor__chart-body">
+                <canvas data-certification--ships--monitor-chart-target="reviewerReturned"></canvas>
+              </div>
+            </div>
+
+            <div class="ship-monitor__chart">
+              <div class="ship-monitor__chart-header">
+                <p class="ship-monitor__chart-title">Approvals</p>
+                <span class="ship-monitor__chart-tip" data-tip="Ships approved per reviewer per day.">?</span>
+              </div>
+              <div class="ship-monitor__chart-body">
+                <canvas data-certification--ships--monitor-chart-target="reviewerApproved"></canvas>
+              </div>
+            </div>
+
+            <div class="ship-monitor__chart">
+              <div class="ship-monitor__chart-header">
+                <p class="ship-monitor__chart-title">Rejections</p>
+                <span class="ship-monitor__chart-tip" data-tip="Ships rejected per reviewer per day.">?</span>
+              </div>
+              <div class="ship-monitor__chart-body">
+                <canvas data-certification--ships--monitor-chart-target="reviewerRejections"></canvas>
+              </div>
+            </div>
+
+          </div>
+        <% end %>
+      </section>
+
+    </div>
+
   </div>
 </div>
