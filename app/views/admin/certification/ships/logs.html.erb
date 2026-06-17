@@ -82,7 +82,7 @@
                   </div>
                 </td>
                 <td class="ship-queue__cell-feedback">
-                  <%= truncate(ship.feedback, length: 120) || "—" %>
+                  <%= ship.feedback.present? ? truncate(ship.feedback, length: 120) : "—" %>
                 </td>
                 <td class="ship-queue__cell-status">
                   <span class="status-pill status-pill--<%= ship.status %>"><%= ship.status.capitalize %></span>
