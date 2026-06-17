@@ -127,32 +127,33 @@
   </div>
 <% end %>
 
-<dialog class="verdict-preview" data-certification--verdict-preview-target="modal"
+<%# Reuses the shared .modal shell + `modal` controller (backdrop, esc,
+    scroll-lock); the verdict-preview controller only builds the preview and
+    re-submits on confirm. %>
+<dialog class="modal verdict-preview" data-controller="modal"
+        data-certification--verdict-preview-target="modal"
         aria-labelledby="verdict-preview-title">
-  <div class="verdict-preview__panel">
-    <div class="verdict-preview__heading">
-      <h3 id="verdict-preview-title" class="verdict-preview__title">Confirm verdict</h3>
-      <span class="verdict-preview__badge" data-certification--verdict-preview-target="verdict"></span>
-    </div>
-    <p class="verdict-preview__subtitle">Take one last look before this is sent to the user.</p>
+  <h3 id="verdict-preview-title" class="modal__title">
+    Confirm verdict
+    <span class="status-pill" data-certification--verdict-preview-target="verdict"></span>
+  </h3>
+  <p class="modal__description">Take one last look before this is sent to the user.</p>
 
-    <div class="verdict-preview__feedback" data-certification--verdict-preview-target="feedbackBlock">
-      <h4 class="verdict-preview__feedback-label">Feedback</h4>
-      <p class="verdict-preview__feedback-body" data-certification--verdict-preview-target="feedback"></p>
-    </div>
-    <p class="verdict-preview__no-feedback" data-certification--verdict-preview-target="noFeedback">No feedback written.</p>
+  <div class="modal__field" data-certification--verdict-preview-target="feedbackBlock">
+    <label>Feedback</label>
+    <p class="modal__description verdict-preview__feedback" data-certification--verdict-preview-target="feedback"></p>
+  </div>
+  <p class="modal__description" data-certification--verdict-preview-target="noFeedback">No feedback written.</p>
 
-    <div class="verdict-preview__actions">
-      <button type="button" class="verdict-preview__btn verdict-preview__btn--secondary"
-              data-action="click->certification--verdict-preview#cancel">
-        Go back
-      </button>
-      <button type="button" class="verdict-preview__btn verdict-preview__btn--primary"
-              data-certification--verdict-preview-target="confirmBtn"
-              data-action="click->certification--verdict-preview#confirm">
-        Confirm &amp; submit
-      </button>
-    </div>
+  <div class="modal__actions">
+    <button type="button" class="action-btn action-btn--secondary"
+            data-action="click->modal#close">
+      Go back
+    </button>
+    <button type="button" class="action-btn action-btn--primary" autofocus
+            data-action="click->certification--verdict-preview#confirm">
+      Confirm &amp; submit
+    </button>
   </div>
 </dialog>
 

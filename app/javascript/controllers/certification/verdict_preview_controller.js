@@ -1,5 +1,9 @@
 import { Controller } from "@hotwired/stimulus";
 
+// Intercepts the review form submit to show a confirmation preview of the
+// verdict + feedback before it's sent to the user. The modal shell, backdrop,
+// esc, and scroll-lock are handled by the shared `modal` controller on the
+// dialog itself, so this controller only builds the preview and re-submits.
 export default class extends Controller {
   static targets = [
     "modal",
@@ -7,7 +11,6 @@ export default class extends Controller {
     "feedbackBlock",
     "feedback",
     "noFeedback",
-    "confirmBtn",
   ];
 
   intercept(event) {
@@ -17,93 +20,40 @@ export default class extends Controller {
     }
 
     event.preventDefault();
-    this._buildPreview(event.target);
-    this._open();
+    this.#buildPreview(event.target);
+    if (this.hasModalTarget) this.modalTarget.showModal();
   }
 
   confirm() {
     this._confirmed = true;
-    this._close();
-
-    const form = this.element.querySelector("form.review-form");
-    form?.requestSubmit();
+    if (this.hasModalTarget) this.modalTarget.close();
+    this.element.querySelector("form.review-form")?.requestSubmit();
   }
 
-  cancel() {
-    this._close();
-  }
-
-  _buildPreview(form) {
-    const checked = form.querySelector("input[name$='[status]']:checked");
-    const verdict = checked?.value ?? null;
+  #buildPreview(form) {
+    const verdict =
+      form.querySelector("input[name$='[status]']:checked")?.value ?? null;
 
     if (this.hasVerdictTarget) {
-      const labels = { approved: "Approve ✓", returned: "Reject ✗" };
+      const labels = { approved: "Approved", returned: "Rejected" };
       this.verdictTarget.textContent = verdict
         ? (labels[verdict] ?? verdict)
         : "—";
-      this.verdictTarget.dataset.verdict = verdict ?? "";
+      this.verdictTarget.className =
+        "status-pill" + (verdict ? ` status-pill--${verdict}` : "");
     }
 
-    const feedbackEl = form.querySelector("textarea[name$='[feedback]']");
-    const text = feedbackEl?.value.trim() ?? "";
+    const text =
+      form.querySelector("textarea[name$='[feedback]']")?.value.trim() ?? "";
 
     if (
       this.hasFeedbackTarget &&
       this.hasFeedbackBlockTarget &&
       this.hasNoFeedbackTarget
     ) {
-      if (text) {
-        this.feedbackTarget.textContent = text;
-        this.feedbackBlockTarget.hidden = false;
-        this.noFeedbackTarget.hidden = true;
-      } else {
-        this.feedbackBlockTarget.hidden = true;
-        this.noFeedbackTarget.hidden = false;
-      }
-    }
-  }
-
-  _open() {
-    if (!this.hasModalTarget) return;
-
-    const dialog = this.modalTarget;
-    if (typeof dialog.showModal === "function") {
-      dialog.showModal();
-    } else {
-      dialog.setAttribute("open", "");
-    }
-
-    this._onCancel = (e) => {
-      e.preventDefault();
-      this.cancel();
-    };
-    this._onBackdropClick = (e) => {
-      const rect = dialog.getBoundingClientRect();
-      const outside =
-        e.clientX < rect.left ||
-        e.clientX > rect.right ||
-        e.clientY < rect.top ||
-        e.clientY > rect.bottom;
-      if (outside) this.cancel();
-    };
-    dialog.addEventListener("cancel", this._onCancel);
-    dialog.addEventListener("click", this._onBackdropClick);
-
-    if (this.hasConfirmBtnTarget) this.confirmBtnTarget.focus();
-  }
-
-  _close() {
-    if (!this.hasModalTarget) return;
-
-    const dialog = this.modalTarget;
-    dialog.removeEventListener("cancel", this._onCancel);
-    dialog.removeEventListener("click", this._onBackdropClick);
-
-    if (typeof dialog.close === "function") {
-      dialog.close();
-    } else {
-      dialog.removeAttribute("open");
+      this.feedbackTarget.textContent = text;
+      this.feedbackBlockTarget.hidden = !text;
+      this.noFeedbackTarget.hidden = Boolean(text);
     }
   }
 }
