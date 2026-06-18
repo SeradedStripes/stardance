@@ -428,7 +428,9 @@
     text-decoration: none;
     border: 1px solid var(--card-border);
     color: var(--muted);
-    transition: color 120ms ease, border-color 120ms ease;
+    transition:
+      color 120ms ease,
+      border-color 120ms ease;
 
     &:hover,
     &:focus-visible {
