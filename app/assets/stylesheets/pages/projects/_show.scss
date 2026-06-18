@@ -2031,6 +2031,25 @@ turbo-frame#project_hero {
   }
 }
 
+.project-show__hackatime-dropdown-help {
+  display: block;
+  position: sticky;
+  bottom: 0;
+  padding: 8px 12px;
+  border-top: 1px solid var(--color-space-border);
+  background: var(--color-set-2-bg);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-brand-cream);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+}
+
 .project-show__hackatime-tag {
   display: inline-flex;
   align-items: center;
@@ -2112,6 +2131,7 @@ turbo-frame#project_hero {
   z-index: 10;
   margin-top: 4px;
   padding: 4px;
+  padding-bottom: 0;
   border-radius: var(--profile-radius);
   border: 2px solid var(--color-border-input);
   background: var(--color-set-2-bg);
@@ -2123,6 +2143,10 @@ turbo-frame#project_hero {
   &[hidden] {
     display: none;
   }
+}
+
+.project-show__hackatime-dropdown-items {
+  display: contents;
 }
 
 .project-show__hackatime-dropdown-item {
