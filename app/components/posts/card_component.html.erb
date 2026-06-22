@@ -70,18 +70,11 @@
 
   <% if quote_repost? && original_post.present? %>
     <div class="feed-post-card__repost-preview">
-      <%= render Posts::CardComponent.new(
+      <%= render "shared/repost_preview_card",
             post: original_post,
             current_user: current_user,
-            theme: :"repost-preview",
-            compact: true,
-            show_likes: false,
-            show_comments: false,
-            show_reposts: false,
-            show_actions: false,
             track_engagement: track_engagement,
-            show_views: show_views
-          ) %>
+            show_views: show_views %>
     </div>
   <% end %>
 
@@ -219,7 +212,8 @@
                     simple_mode: true,
                     show_project_chips: false,
                     show_attachments: false,
-                    show_time_preview: false
+                    show_time_preview: false,
+                    quote_preview_post: repost_target
                   ) %>
             </dialog>
           <% else %>

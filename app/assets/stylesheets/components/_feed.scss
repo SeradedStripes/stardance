@@ -358,6 +358,13 @@
     display: none;
   }
 
+  // The post being quoted, shown below the text box while composing a quote
+  // repost (reuses .feed-post-card__repost-preview for the timeline look).
+  // Non-interactivity comes from the `inert` attribute on the element.
+  &__quote-preview {
+    margin-top: 14px;
+  }
+
   &__info-wrap {
     display: flex;
     align-items: center;
