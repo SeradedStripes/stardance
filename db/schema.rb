@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_19_200900) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_22_164635) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -1435,6 +1435,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_19_200900) do
 
   create_table "votes", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.boolean "discarded", default: false, null: false
     t.integer "originality_score"
     t.bigint "project_id", null: false
     t.text "reason"
@@ -1444,6 +1445,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_19_200900) do
     t.datetime "updated_at", null: false
     t.integer "usability_score"
     t.bigint "user_id", null: false
+    t.index ["discarded", "ship_event_id"], name: "index_votes_on_discarded_and_ship_event_id"
     t.index ["project_id"], name: "index_votes_on_project_id"
     t.index ["ship_event_id"], name: "index_votes_on_ship_event_id"
     t.index ["user_id", "ship_event_id"], name: "index_votes_on_user_id_and_ship_event_id", unique: true

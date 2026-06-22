@@ -3,6 +3,7 @@
 # Table name: votes
 #
 #  id                 :bigint           not null, primary key
+#  discarded          :boolean          default(FALSE), not null
 #  originality_score  :integer
 #  reason             :text
 #  storytelling_score :integer
@@ -16,10 +17,11 @@
 #
 # Indexes
 #
-#  index_votes_on_project_id                 (project_id)
-#  index_votes_on_ship_event_id              (ship_event_id)
-#  index_votes_on_user_id                    (user_id)
-#  index_votes_on_user_id_and_ship_event_id  (user_id,ship_event_id) UNIQUE
+#  index_votes_on_discarded_and_ship_event_id  (discarded,ship_event_id)
+#  index_votes_on_project_id                   (project_id)
+#  index_votes_on_ship_event_id                (ship_event_id)
+#  index_votes_on_user_id                      (user_id)
+#  index_votes_on_user_id_and_ship_event_id    (user_id,ship_event_id) UNIQUE
 #
 # Foreign Keys
 #
@@ -53,6 +55,7 @@ class Vote < ApplicationRecord
       SELECT COUNT(*)
       FROM votes
       WHERE votes.ship_event_id = post_ship_events.id
+        AND votes.discarded = false
         AND NOT EXISTS (
           SELECT 1
           FROM vote_events
@@ -74,8 +77,12 @@ class Vote < ApplicationRecord
   after_commit :increment_user_vote_balance, on: :create
   after_commit :refresh_ship_event_payout_later, on: [ :create, :destroy ]
   after_create_commit :send_gorse_vote_later
+  after_create_commit :enqueue_auto_discard
 
-  scope :payout_countable, -> { where.not(id: Vote::Event.accepted_vote_flags.select(:vote_id)) }
+  scope :payout_countable, -> {
+    where(discarded: false)
+      .where.not(id: Vote::Event.accepted_vote_flags.select(:vote_id))
+  }
 
   validates :reason, presence: true
   validate :reason_minimum_words
@@ -110,6 +117,7 @@ class Vote < ApplicationRecord
   def accept_flag(reviewer:)
     if pending_flag = self.pending_flag
       transaction do
+        update!(discarded: true)
         events.create!(
           event_type: "vote_flag_accepted",
           user: reviewer,
@@ -157,7 +165,24 @@ class Vote < ApplicationRecord
 
   def pending_flag? = pending_flag.present?
 
-  def discarded? = events.exists?(event_type: "vote_flag_accepted")
+  def discarded? = discarded || events.exists?(event_type: "vote_flag_accepted")
+
+  def auto_discard!(properties: {})
+    with_lock do
+      return if discarded?
+
+      update!(discarded: true)
+      events.create!(
+        event_type: "vote_auto_discarded",
+        user: user,
+        project: project,
+        ship_event: ship_event,
+        properties: properties.to_h.merge(automated: true)
+      )
+    end
+
+    ShipEventPayoutRefreshJob.perform_later
+  end
 
   private
 
@@ -203,6 +228,10 @@ class Vote < ApplicationRecord
         timestamp: created_at
       )
     end
+  end
+
+  def enqueue_auto_discard
+    Vote::AutoDiscardJob.perform_later(id)
   end
 
   def score_average
