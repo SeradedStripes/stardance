@@ -23,7 +23,7 @@ module Post::ShipEvent::Payouts
     }
     scope :ready_for_payout, -> {
       approved.unpaid.voting_payout_path
-        .where("(#{Vote.countable_count_sql}) >= ?", Post::ShipEvent::VOTES_REQUIRED_FOR_PAYOUT)
+        .where(Vote.countable_count_gteq(Post::ShipEvent::VOTES_REQUIRED_FOR_PAYOUT))
     }
   end
 

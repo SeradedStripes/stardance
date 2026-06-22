@@ -50,19 +50,31 @@ class Vote < ApplicationRecord
 
   def self.score_columns = SCORE_COLUMNS_BY_CATEGORY.values
 
-  def self.countable_count_sql
-    <<~SQL.squish
-      SELECT COUNT(*)
-      FROM votes
-      WHERE votes.ship_event_id = post_ship_events.id
-        AND votes.discarded = false
-        AND NOT EXISTS (
-          SELECT 1
-          FROM vote_events
-          WHERE vote_events.vote_id = votes.id
-            AND vote_events.event_type = 'vote_flag_accepted'
-        )
-    SQL
+  def self.countable_count_for_ship_events
+    votes = arel_table
+    vote_events = Vote::Event.arel_table
+
+    accepted_flag_exists = vote_events
+      .project(Arel.sql("1"))
+      .where(vote_events[:vote_id].eq(votes[:id]))
+      .where(vote_events[:event_type].eq("vote_flag_accepted"))
+      .exists
+
+    count_query = votes
+      .project(votes[:id].count)
+      .where(votes[:ship_event_id].eq(Post::ShipEvent.arel_table[:id]))
+      .where(votes[:discarded].eq(false))
+      .where(accepted_flag_exists.not)
+
+    Arel::Nodes::Grouping.new(count_query.ast)
+  end
+
+  def self.countable_count_lt(value)
+    Arel::Nodes::LessThan.new(countable_count_for_ship_events, Arel::Nodes.build_quoted(value))
+  end
+
+  def self.countable_count_gteq(value)
+    Arel::Nodes::GreaterThanOrEqual.new(countable_count_for_ship_events, Arel::Nodes.build_quoted(value))
   end
 
   belongs_to :user, counter_cache: true
