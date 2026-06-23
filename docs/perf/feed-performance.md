@@ -1,8 +1,9 @@
 # Feed performance: benchmark, findings, and fixes
 
 This documents a data-driven pass over the main Stardance user flows (feed,
-scrolling, liking, commenting), the performance problems found, and the fixes
-applied in this PR.
+scrolling, liking, commenting), measured on **both the server side** (render
+time, SQL) and the **client side** (Core Web Vitals, bundle weight, scroll
+FPS), the performance problems found, and the fixes applied in this PR.
 
 ## Method
 
@@ -11,9 +12,16 @@ applied in this PR.
   fan-out match real-world cardinality rather than a handful of fixtures.
 - **User:** signed in as the most active account (147 posts) so the feed is fully
   populated and worst-case for per-item work.
-- **Measurement:** each endpoint hit 6× warm; numbers are the **median** of the
-  Rails `Completed … (Views | ActiveRecord | N queries)` log line. Query call
-  sites were attributed via `ActiveRecord` backtrace logging (`↳ file:line`).
+- **Server measurement:** each endpoint hit 6× warm; numbers are the **median**
+  of the Rails `Completed … (Views | ActiveRecord | N queries)` log line. Query
+  call sites were attributed via `ActiveRecord` backtrace logging (`↳ file:line`).
+- **Client measurement:** headless Chromium (Playwright) driving the real `/home`
+  feed UX, 6 runs, medians. Core Web Vitals via `PerformanceObserver`
+  (paint / `largest-contentful-paint` / `layout-shift` / `longtask`); scroll FPS
+  from `requestAnimationFrame` frame intervals while scrolling through the lazy
+  pagination. Caveat: only DB rows were mirrored, not Active Storage blob files,
+  so post media 404s locally — client numbers reflect document + JS + CSS +
+  layout cost, not image download.
 
 All timings are local (DB round-trips ≈0.5 ms). The **query-count** reductions
 are the headline: in production each eliminated query is a network round-trip to
@@ -100,6 +108,69 @@ reflects server-render time, not image download.
 |--------|-------|
 | ![before](feed_before.gif) | ![after](feed_after.gif) |
 
+## Frontend (client-side) performance
+
+Measured in the browser on `/home`, the real feed UX (styled shell that
+lazy-loads the feed Turbo Frame). 6 runs, medians.
+
+### Core Web Vitals — healthy
+
+| Metric | After | Verdict |
+|--------|------:|---------|
+| TTFB | 292 ms | good |
+| First Contentful Paint | 320 ms | good (< 1.8 s) |
+| Largest Contentful Paint | 320 ms | good (< 2.5 s) |
+| Cumulative Layout Shift | 0.088 | good (< 0.1), but see below |
+| Total Blocking Time | 0 ms (0 long tasks) | good |
+| DOMContentLoaded / load | 315 ms / 682 ms | — |
+
+### Scroll performance — smooth
+
+Scrolling through the feed (which fires the lazy Turbo-Frame pagination) holds
+frame rate with no jank:
+
+| Metric | After |
+|--------|------:|
+| Average FPS | ~83 |
+| Average frame time | 12 ms |
+| Janky frames (> 50 ms) | **0** |
+| Worst frame | 28 ms |
+| Long tasks during scroll | **0** |
+
+### Effect of the backend fix on the client
+
+The N+1 fix is server-side, but server time is on the critical path to paint, so
+client vitals move with it (small locally where the DB is ≈0.5 ms/query; larger
+in production):
+
+| Metric | Before | After |
+|--------|-------:|------:|
+| TTFB | 301 ms | 292 ms |
+| FCP / LCP | 330 ms | 320 ms |
+
+JS/CSS bundle bytes are unchanged by the fix, as expected.
+
+### Page weight — the real frontend opportunity
+
+| Asset | Decoded size | Notes |
+|-------|-------------:|-------|
+| `/home/feed` document | ~450 KB | uncompressed in dev; gzip in prod ≈ 1/8th. ~22 KB of HTML per post |
+| JavaScript | ~2.1 MB (4 files) | decoded/parsed bytes; ~89 KB over the wire |
+| CSS | ~600 KB | decoded; ~17 KB over the wire |
+
+These don't block paint on a fast machine (TBT 0), but the ~2.1 MB of parsed JS
+and ~22 KB HTML/post are what would hurt on low-end mobile and are the main
+client-side headroom.
+
+### CLS source
+
+CLS (0.088) does **not** come from feed images — the media containers already
+reserve space via `aspect-ratio` (`_feed.scss`). The recorded shift sources are
+the composer toolbar and feed tabs reflowing as JS hydrates (~5 s):
+`feed-composer__toolbar`, `md-tabs`, `feed-composer__emoji-wrap`. It's under the
+0.1 "good" threshold; reserving a min-height on the composer toolbar would
+shave it further (left out here — visual change, separate from the N+1 fix).
+
 ## Further opportunities (not in this PR)
 
 Documented for follow-up; left out here to keep the change small and
@@ -112,3 +183,9 @@ migration-free:
 - **Feed ranking CTE** (`Gorse::PostPayload.feed_scope`) is ~52 ms — the
   irreducible core query; worth an index review on the `quality_latest` ordering
   columns.
+- **JS bundle** (~2.1 MB parsed across 4 files): a code-split / import audit
+  would cut parse time on low-end mobile.
+- **Feed HTML weight** (~22 KB/post uncompressed): trimming per-card markup or
+  deferring offscreen cards would shrink the initial document.
+- **CLS from composer hydration** (~0.05 of the 0.088): reserve a min-height on
+  the composer toolbar so tabs/feed don't jump when JS hydrates.
