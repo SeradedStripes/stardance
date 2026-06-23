@@ -129,7 +129,8 @@ class Mission::Submission < ApplicationRecord
       project_url: project ? routes.project_url(project, **url_opts) : routes.root_url(**url_opts),
       builder_name: builder&.display_name || "the builder",
       payout_path: payout_path.titleize,
-      submission_url: routes.mission_submission_url(self, **url_opts),
+      admin_submission_url: routes.admin_mission_submission_url(mission.slug, self, **url_opts),
+      redeem_url: mission.prizes_count > 0 ? routes.redeem_mission_submission_url(self, **url_opts) : nil,
       rejection_message: rejection_message.to_s
     }
   end
