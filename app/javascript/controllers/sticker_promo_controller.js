@@ -23,17 +23,4 @@ export default class extends Controller {
     document.body.style.overflow = "";
     this.element.remove();
   }
-
-  backdropClick(event) {
-    if (event.target !== this.dialogTarget) return;
-
-    const rect = this.dialogTarget.getBoundingClientRect();
-    const clickedInside =
-      event.clientX >= rect.left &&
-      event.clientX <= rect.right &&
-      event.clientY >= rect.top &&
-      event.clientY <= rect.bottom;
-
-    if (!clickedInside) this.dismiss();
-  }
 }

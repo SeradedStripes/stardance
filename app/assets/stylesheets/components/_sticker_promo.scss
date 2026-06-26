@@ -92,10 +92,13 @@
   }
 
   &__cta {
+    appearance: none;
+    border: none;
     display: block;
     width: min(100%, 566px);
     padding: var(--space-s) var(--space-xl);
     background: var(--color-brand-highlight);
+    cursor: pointer;
     color: var(--color-set-1-bg);
     font-family: var(--font-family-text);
     font-weight: 700;
