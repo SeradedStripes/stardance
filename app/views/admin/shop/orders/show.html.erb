@@ -20,7 +20,7 @@
 
   pipeline = [
     { label: "Placed",        sublabel: "Order received" },
-    { label: "Verification",  sublabel: "Identity check" },
+    { label: "Fraud Check",   sublabel: "Fraud Check" },
     { label: "Fulfillment",   sublabel: "Processing" },
     { label: "Done",          sublabel: s == "rejected" ? "Rejected" : s == "refunded" ? "Refunded" : "Fulfilled" }
   ]
@@ -67,7 +67,7 @@
         <span class="aorder__step-label"><%= step[:label] %></span>
         <span class="aorder__step-sublabel">
           <% if i == step_idx && s == "awaiting_verification_call" %>Verification Call
-          <% elsif i == step_idx && s == "awaiting_verification" %>Identity Check
+          <% elsif i == step_idx && s == "awaiting_verification" %>Fraud Check
           <% elsif i == step_idx && s == "on_hold" %><%= policy(@order).view_on_hold_state? ? "On Hold" : "Pending" %>
           <% else %><%= step[:sublabel] %>
           <% end %>
@@ -256,17 +256,9 @@
           </details>
         <% end %>
         <% if @user_projects.present? %>
-          <%
-            joe_hackatime = @order.user.identities.find { |i| i.provider == "hackatime" }
-            joe_projects_param = CGI.escape(@user_projects.map(&:title).join(","))
-          %>
+          <% joe_hackatime = @order.user.identities.find { |i| i.provider == "hackatime" } %>
           <details style="margin-top: var(--space-s);">
-            <summary style="cursor:pointer; font-size: var(--font-size-xs); color: var(--color-space-text-muted); font-family: var(--font-family-text); display: flex; align-items: center; gap: var(--space-xs);">
-              ▸ Projects (<%= @user_projects.size %>)
-              <% if joe_hackatime %>
-                <%= link_to "Joe", "https://joe.fraud.hackclub.com/billy/overview?u=#{joe_hackatime.uid}&project=#{joe_projects_param}", target: "_blank", class: "aorder__fraud-btn" %>
-              <% end %>
-            </summary>
+            <summary style="cursor:pointer; font-size: var(--font-size-xs); color: var(--color-space-text-muted); font-family: var(--font-family-text);">▸ Projects (<%= @user_projects.size %>)</summary>
             <div style="margin-top: var(--space-xs);">
               <% @user_projects.each do |project| %>
                 <div class="aorder__history-item">

@@ -10,7 +10,7 @@
 <% users_by_id = User.where(id: displayed_versions.map(&:whodunnit).compact.uniq).index_by { |u| u.id.to_s } %>
 
 <details class="admin-section">
-  <summary class="admin-section__summary">📜 Audit Log (<%= versions.count %> changes)</summary>
+  <summary class="admin-section__summary">Audit Log (<%= versions.count %> changes)</summary>
 
   <div class="admin-section__content audit-log">
   <% if versions.any? %>
@@ -70,7 +70,7 @@
                       <div class="audit-log__change">
                         <code class="audit-log__field"><%= k %></code>
                         <% if sensitive_fields.include?(k.to_s) %>
-                          <span class="audit-log__redacted">🔒 redacted</span>
+                          <span class="audit-log__redacted">redacted</span>
                         <% elsif v.is_a?(Array) && v.length == 2 %>
                           <span class="audit-log__old"><%= truncate(v[0].to_s, length: 25) %></span>
                           <span class="audit-log__arrow">→</span>
