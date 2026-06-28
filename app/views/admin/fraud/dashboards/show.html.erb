@@ -30,7 +30,7 @@
         <% end %>
       </div>
 
-      <%= render ActionButtonComponent.new(href: admin_certification_reports_path(reason: "fraud")) do %>
+      <%= render ActionButtonComponent.new(href: admin_certification_reports_path) do %>
         <span class="action-btn__label">Reports</span>
         <% if @pending_fraud_reports_count > 0 %>
           <span class="action-btn__badge action-btn__badge--salmon"><%= @pending_fraud_reports_count %></span>

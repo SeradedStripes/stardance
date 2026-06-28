@@ -255,6 +255,33 @@
             </div>
           </details>
         <% end %>
+        <% if @user_projects.present? %>
+          <%
+            joe_hackatime = @order.user.identities.find { |i| i.provider == "hackatime" }
+            joe_projects_param = CGI.escape(@user_projects.map(&:title).join(","))
+          %>
+          <details style="margin-top: var(--space-s);">
+            <summary style="cursor:pointer; font-size: var(--font-size-xs); color: var(--color-space-text-muted); font-family: var(--font-family-text); display: flex; align-items: center; gap: var(--space-xs);">
+              ▸ Projects (<%= @user_projects.size %>)
+              <% if joe_hackatime %>
+                <%= link_to "Joe", "https://joe.fraud.hackclub.com/billy/overview?u=#{joe_hackatime.uid}&project=#{joe_projects_param}", target: "_blank", class: "aorder__fraud-btn" %>
+              <% end %>
+            </summary>
+            <div style="margin-top: var(--space-xs);">
+              <% @user_projects.each do |project| %>
+                <div class="aorder__history-item">
+                  <%= link_to truncate(project.title, length: 30), admin_project_path(project) %>
+                  <% if project.deleted? %>
+                    <span style="font-size:10px; color: var(--color-space-text-muted);">(deleted)</span>
+                  <% end %>
+                  <% if joe_hackatime %>
+                    <%= link_to "Joe", "https://joe.fraud.hackclub.com/billy/overview?u=#{joe_hackatime.uid}&project=#{CGI.escape(project.title)}", target: "_blank", class: "aorder__fraud-btn" %>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+          </details>
+        <% end %>
       </div>
     </div>
 
@@ -310,7 +337,7 @@
             <% end %>
           </span>
         </div>
-        <% if policy(current_user).view_order_full_details? %>
+        <% if policy(current_user).view_usd_cost? %>
           <% regional_usd_offset = @order.region.present? ? (item.send("usd_offset_#{@order.region.downcase}") || item.send("usd_offset_xx") || 0) : 0 %>
           <div class="aorder__row">
             <span class="aorder__row-label">USD cost</span>

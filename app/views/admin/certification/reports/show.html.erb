@@ -55,7 +55,7 @@
           <% end %>
         </dl>
 
-        <div class="admin-actions-wrap">
+        <div class="admin-actions-wrap" style="margin-top: var(--space-m)">
           <%= link_to "View Project →", admin_project_path(@report.project), class: "btn-primary slim" %>
           <% if owner %>
             <%= link_to "View Owner →", admin_user_path(owner), class: "btn-primary slim" %>
@@ -104,7 +104,7 @@
       </div>
 
       <% if @report.pending? %>
-        <div class="admin-actions-wrap">
+        <div class="admin-actions-wrap" style="margin-top: var(--space-m)">
           <%= button_to "Mark Action Taken", review_admin_certification_report_path(@report), method: :post, class: "btn-primary" %>
           <%= button_to "Dismiss Report", dismiss_admin_certification_report_path(@report), method: :post, class: "btn-danger" %>
         </div>
