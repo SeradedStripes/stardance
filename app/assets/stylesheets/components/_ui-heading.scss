@@ -4,7 +4,7 @@
 .ui-heading {
   // Default tone: warm highlight (cream)
   --_accent: var(--color-brand-highlight);
-  --_glow:   var(--color-brand-highlight-soft);
+  --_glow: var(--color-brand-highlight-soft);
 
   display: flex;
   flex-direction: column;
@@ -14,27 +14,27 @@
   // Tone modifiers — mapped to Stardance palette
   &--salmon {
     --_accent: var(--color-brand-salmon);
-    --_glow:   var(--color-brand-salmon-soft);
+    --_glow: var(--color-brand-salmon-soft);
   }
 
   &--mint {
     --_accent: var(--color-brand-mint);
-    --_glow:   var(--color-brand-mint-soft);
+    --_glow: var(--color-brand-mint-soft);
   }
 
   &--lilac {
     --_accent: var(--color-brand-lilac);
-    --_glow:   var(--color-brand-lilac-soft);
+    --_glow: var(--color-brand-lilac-soft);
   }
 
   &--blue {
     --_accent: var(--color-brand-blue);
-    --_glow:   rgba(149, 219, 255, 0.18);
+    --_glow: rgba(149, 219, 255, 0.18);
   }
 
   &--yellow {
     --_accent: var(--color-brand-yellow);
-    --_glow:   var(--color-brand-yellow-soft);
+    --_glow: var(--color-brand-yellow-soft);
   }
 
   // Full-width page-header banner
@@ -52,7 +52,11 @@
       inset: 0;
       width: 50%;
       border-radius: 0;
-      background: radial-gradient(ellipse at left center, var(--_glow) 0%, transparent 70%);
+      background: radial-gradient(
+        ellipse at left center,
+        var(--_glow) 0%,
+        transparent 70%
+      );
       filter: blur(0);
       animation: none;
     }
@@ -159,8 +163,13 @@
 }
 
 @keyframes ui-heading-breathe {
-  0%, 100% { opacity: 0.65; }
-  50%       { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 // ── Vote cookie (unrelated to heading — lives here for historical reasons) ────

@@ -18,5 +18,4 @@ class UserPolicy < ApplicationPolicy
   def following?
     true
   end
-
 end

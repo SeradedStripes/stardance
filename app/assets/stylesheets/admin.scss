@@ -329,7 +329,9 @@ body.admin-page {
   }
 }
 
-.btn-primary, a.btn-primary, button.btn-primary {
+.btn-primary,
+a.btn-primary,
+button.btn-primary {
   @extend %btn-base;
   background: var(--color-brand-blue);
   color: var(--color-set-1-bg);
@@ -341,7 +343,9 @@ body.admin-page {
   }
 }
 
-.btn-secondary, a.btn-secondary, button.btn-secondary {
+.btn-secondary,
+a.btn-secondary,
+button.btn-secondary {
   @extend %btn-base;
   background: var(--color-space-surface);
   color: white;
@@ -353,7 +357,9 @@ body.admin-page {
   }
 }
 
-.btn-danger, a.btn-danger, button.btn-danger {
+.btn-danger,
+a.btn-danger,
+button.btn-danger {
   @extend %btn-base;
   background: #ef4444;
   color: white;
@@ -728,8 +734,8 @@ dialog {
   border: 1px solid var(--color-space-border);
   border-radius: 8px;
   background: var(--color-space-surface-faint);
-  overflow-y: hidden;  // clip table corners to card border-radius
-  overflow-x: auto;   // horizontal scroll at the card level, not in a nested box
+  overflow-y: hidden; // clip table corners to card border-radius
+  overflow-x: auto; // horizontal scroll at the card level, not in a nested box
 }
 
 .audit-log__header {

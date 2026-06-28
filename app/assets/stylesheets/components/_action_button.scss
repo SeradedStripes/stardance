@@ -38,10 +38,18 @@
     background-color: var(--color-brand-salmon);
     color: var(--color-set-1-bg);
 
-    &--mint   { background-color: var(--color-brand-mint); }
-    &--yellow { background-color: var(--color-brand-yellow); }
-    &--peach  { background-color: var(--color-brand-peach); }
-    &--salmon { background-color: var(--color-brand-salmon); }
+    &--mint {
+      background-color: var(--color-brand-mint);
+    }
+    &--yellow {
+      background-color: var(--color-brand-yellow);
+    }
+    &--peach {
+      background-color: var(--color-brand-peach);
+    }
+    &--salmon {
+      background-color: var(--color-brand-salmon);
+    }
 
     &--red-pulse {
       background-color: #ff3c3c;
@@ -52,7 +60,9 @@
     &--red-pulse-spin {
       background-color: #ff3c3c;
       color: #fff;
-      animation: badge-pulse 1.2s ease-in-out infinite, badge-spin 2s linear infinite;
+      animation:
+        badge-pulse 1.2s ease-in-out infinite,
+        badge-spin 2s linear infinite;
     }
 
     &--fire {
@@ -217,28 +227,69 @@
 }
 
 @keyframes badge-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 60, 60, 0.7); }
-  50%       { box-shadow: 0 0 0 6px rgba(255, 60, 60, 0); }
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 60, 60, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(255, 60, 60, 0);
+  }
 }
 
 @keyframes badge-spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes flame-flicker {
-  0%   { transform: scaleX(1)    scaleY(1)    skewX(0deg); opacity: 0.9; }
-  33%  { transform: scaleX(0.85) scaleY(1.1)  skewX(-4deg); opacity: 1; }
-  66%  { transform: scaleX(1.1)  scaleY(0.9)  skewX(3deg); opacity: 0.85; }
-  100% { transform: scaleX(0.9)  scaleY(1.15) skewX(-2deg); opacity: 1; }
+  0% {
+    transform: scaleX(1) scaleY(1) skewX(0deg);
+    opacity: 0.9;
+  }
+  33% {
+    transform: scaleX(0.85) scaleY(1.1) skewX(-4deg);
+    opacity: 1;
+  }
+  66% {
+    transform: scaleX(1.1) scaleY(0.9) skewX(3deg);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scaleX(0.9) scaleY(1.15) skewX(-2deg);
+    opacity: 1;
+  }
 }
 
 @keyframes badge-fire {
-  0%   { background-color: #ff5500; box-shadow: 0 0 4px 1px rgba(255, 100, 0, 0.5); transform: translateY(0); }
-  25%  { background-color: #ff8c00; box-shadow: 0 0 8px 3px rgba(255, 160, 0, 0.4); transform: translateY(-1px); }
-  50%  { background-color: #ff6a00; box-shadow: 0 0 6px 2px rgba(255, 80, 0, 0.5); transform: translateY(0); }
-  75%  { background-color: #ffaa00; box-shadow: 0 0 10px 3px rgba(255, 180, 0, 0.35); transform: translateY(-1px); }
-  100% { background-color: #ff5500; box-shadow: 0 0 4px 1px rgba(255, 100, 0, 0.5); transform: translateY(0); }
+  0% {
+    background-color: #ff5500;
+    box-shadow: 0 0 4px 1px rgba(255, 100, 0, 0.5);
+    transform: translateY(0);
+  }
+  25% {
+    background-color: #ff8c00;
+    box-shadow: 0 0 8px 3px rgba(255, 160, 0, 0.4);
+    transform: translateY(-1px);
+  }
+  50% {
+    background-color: #ff6a00;
+    box-shadow: 0 0 6px 2px rgba(255, 80, 0, 0.5);
+    transform: translateY(0);
+  }
+  75% {
+    background-color: #ffaa00;
+    box-shadow: 0 0 10px 3px rgba(255, 180, 0, 0.35);
+    transform: translateY(-1px);
+  }
+  100% {
+    background-color: #ff5500;
+    box-shadow: 0 0 4px 1px rgba(255, 100, 0, 0.5);
+    transform: translateY(0);
+  }
 }
 
 .fraud-shop-btn {

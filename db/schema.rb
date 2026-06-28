@@ -10,10 +10,9 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_24_203854) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_28_025316) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
-  enable_extension "pg_stat_statements"
   enable_extension "vector"
 
   # Custom types defined in this database.
@@ -314,6 +313,29 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_24_203854) do
     t.check_constraint "follower_id <> followed_id", name: "follows_no_self_follow"
   end
 
+  create_table "fraud_payout_lines", force: :cascade do |t|
+    t.integer "amount"
+    t.datetime "created_at", null: false
+    t.bigint "fraud_payout_run_id", null: false
+    t.integer "order_count"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["fraud_payout_run_id"], name: "index_fraud_payout_lines_on_fraud_payout_run_id"
+    t.index ["user_id"], name: "index_fraud_payout_lines_on_user_id"
+  end
+
+  create_table "fraud_payout_runs", force: :cascade do |t|
+    t.string "aasm_state"
+    t.datetime "approved_at"
+    t.bigint "approved_by_user_id"
+    t.datetime "created_at", null: false
+    t.datetime "period_end"
+    t.datetime "period_start"
+    t.integer "total_amount"
+    t.integer "total_orders"
+    t.datetime "updated_at", null: false
+  end
+
   create_table "fulfillment_payout_lines", force: :cascade do |t|
     t.integer "amount"
     t.datetime "created_at", null: false
@@ -542,6 +564,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_24_203854) do
     t.integer "fixed_stardust_payout"
     t.integer "guide_sections_count"
     t.string "guide_url"
+    t.boolean "hardware", default: false, null: false
     t.string "name", null: false
     t.integer "prizes_count", default: 0, null: false
     t.string "slug", null: false
@@ -1103,6 +1126,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_24_203854) do
     t.datetime "awaiting_periodical_fulfillment_at"
     t.datetime "created_at", null: false
     t.string "external_ref"
+    t.bigint "fraud_payout_line_id"
     t.bigint "fraud_related_project_id"
     t.text "frozen_address_ciphertext"
     t.decimal "frozen_item_price", precision: 6, scale: 2
@@ -1285,22 +1309,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_24_203854) do
     t.index ["user_id"], name: "index_user_notification_preferences_on_user_id"
   end
 
-  create_table "user_preference", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.boolean "leaderboard_optin", default: false, null: false
-    t.boolean "search_engine_indexing_off", default: false, null: false
-    t.boolean "send_notifications_for_followed_projects", default: true, null: false
-    t.boolean "send_notifications_for_followed_users", default: true, null: false
-    t.boolean "send_notifications_for_new_comments", default: true, null: false
-    t.boolean "send_notifications_for_new_followers", default: true, null: false
-    t.boolean "send_votes_to_slack", default: false, null: false
-    t.boolean "stardust_balance_notifications", default: false, null: false
-    t.datetime "updated_at", null: false
-    t.bigint "user_id", null: false
-    t.index ["leaderboard_optin"], name: "index_user_preference_on_leaderboard_optin"
-    t.index ["user_id"], name: "index_user_preference_on_user_id", unique: true
-  end
-
   create_table "user_preferences", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.boolean "leaderboard_optin", default: false, null: false
@@ -1311,6 +1319,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_24_203854) do
     t.boolean "send_notifications_for_new_followers", default: true, null: false
     t.boolean "send_votes_to_slack", default: false, null: false
     t.boolean "stardust_balance_notifications", default: false, null: false
+    t.boolean "streak_slack_status_enabled", default: true, null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["leaderboard_optin"], name: "index_user_preferences_on_leaderboard_optin"
@@ -1502,6 +1511,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_24_203854) do
   add_foreign_key "devlog_versions", "users"
   add_foreign_key "follows", "users", column: "followed_id"
   add_foreign_key "follows", "users", column: "follower_id"
+  add_foreign_key "fraud_payout_lines", "fraud_payout_runs"
+  add_foreign_key "fraud_payout_lines", "users"
   add_foreign_key "fulfillment_payout_lines", "fulfillment_payout_runs"
   add_foreign_key "fulfillment_payout_lines", "users"
   add_foreign_key "fulfillment_payout_runs", "users", column: "approved_by_user_id"
@@ -1602,7 +1613,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_24_203854) do
   add_foreign_key "user_hackatime_projects", "users"
   add_foreign_key "user_identities", "users"
   add_foreign_key "user_notification_preferences", "users", on_delete: :cascade
-  add_foreign_key "user_preference", "users"
   add_foreign_key "user_preferences", "users"
   add_foreign_key "user_vote_verdicts", "users"
   add_foreign_key "vote_assignments", "post_ship_events", column: "ship_event_id"

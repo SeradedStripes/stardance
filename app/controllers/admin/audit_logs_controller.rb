@@ -28,11 +28,11 @@ module Admin
       # Quick date preset (overrides start/end date if both present)
       if params[:period].present?
         cutoff = case params[:period]
-                 when "today"   then Time.current.beginning_of_day
-                 when "week"    then 7.days.ago
-                 when "month"   then 30.days.ago
-                 when "quarter" then 90.days.ago
-                 end
+        when "today"   then Time.current.beginning_of_day
+        when "week"    then 7.days.ago
+        when "month"   then 30.days.ago
+        when "quarter" then 90.days.ago
+        end
         @versions = @versions.where("created_at >= ?", cutoff) if cutoff
       end
 
