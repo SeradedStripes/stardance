@@ -205,12 +205,14 @@ module Post::ShipEvent::Payouts
     payout_amount
   end
 
-  def payout_preview(sample = self.class.payout_score_sample)
+  def payout_preview(sample = self.class.payout_score_sample, votes_count: nil, pending_flags_count: nil)
     scores = payout_preview_scores(sample)
     preview_hours = payout_basis_locked_at? ? hours_at_payout.to_f : hours
     preview_percentile = payout_basis_locked_at? ? payout_basis_percentile : scores[:overall_percentile]
     preview_multiplier = multiplier || payout_multiplier_for_percentile(preview_percentile)
     preview_blessing = payout_basis_locked_at? ? payout_blessing : payout_blessing_for_snapshot
+    preview_votes_count = votes_count || votes.payout_countable.count
+    preview_pending_flags_count = pending_flags_count || votes.joins(:events).merge(Vote::Event.pending_vote_flags).count
 
     {
       hours: preview_hours,
@@ -219,11 +221,11 @@ module Post::ShipEvent::Payouts
       multiplier: preview_multiplier,
       blessing: preview_blessing,
       estimated_payout: payout_amount_for(preview_hours, preview_multiplier, preview_blessing),
-      votes_count: votes.payout_countable.count,
-      review_open: payout_review_open?,
+      votes_count: preview_votes_count,
+      review_open: payout_review_open_with_flags?(preview_pending_flags_count),
       review_deadline: payout_review_deadline,
-      pending_flags_count: votes.joins(:events).merge(Vote::Event.pending_vote_flags).count,
-      blockers: payout_preview_blockers(preview_hours)
+      pending_flags_count: preview_pending_flags_count,
+      blockers: payout_preview_blockers(preview_hours, preview_votes_count, preview_pending_flags_count)
     }
   end
 
@@ -324,16 +326,24 @@ module Post::ShipEvent::Payouts
       }
     end
 
-    def payout_preview_blockers(preview_hours)
+    def payout_review_open_with_flags?(pending_flags_count)
+      self.class.payout_feature_enabled?(payout_recipient) &&
+        payout_basis_locked_at.present? &&
+        payout.blank? &&
+        Time.current < payout_review_deadline &&
+        pending_flags_count.zero?
+    end
+
+    def payout_preview_blockers(preview_hours, votes_count, pending_flags_count)
       blockers = []
       blockers << "Not approved" unless certification_status == "approved"
       blockers << "Already paid" if payout.present?
       blockers << "Static prize path" unless voting_payout_path?
-      blockers << "Needs #{Post::ShipEvent::VOTES_REQUIRED_FOR_PAYOUT} countable votes" if votes.payout_countable.count < Post::ShipEvent::VOTES_REQUIRED_FOR_PAYOUT
+      blockers << "Needs #{Post::ShipEvent::VOTES_REQUIRED_FOR_PAYOUT} countable votes" if votes_count < Post::ShipEvent::VOTES_REQUIRED_FOR_PAYOUT
       blockers << "Missing recipient" if payout_recipient.blank?
       blockers << "Vote balance deficit" if payout_recipient&.vote_balance.to_i.negative?
       blockers << "No payable hours" unless preview_hours.to_f.positive?
-      blockers << "Pending vote flags" if payout_review_flagged?
+      blockers << "Pending vote flags" if pending_flags_count.positive?
       blockers
     end
 
