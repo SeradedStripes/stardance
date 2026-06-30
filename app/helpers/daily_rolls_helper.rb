@@ -29,10 +29,9 @@ module DailyRollsHelper
     user&.streak_today_activity&.coded_seconds.to_i
   end
 
-  # Tooltip on the locked reroll button: what to do and how close they are.
-  def reroll_locked_hint(user)
-    "Code 1 min on a Stardance project today to unlock a reroll " \
-      "(#{reroll_coded_seconds(user)}s / #{DailyRoll::REROLL_MIN_SECONDS}s)"
+  # Tooltip on the locked reroll button: what to do to unlock it.
+  def reroll_locked_hint
+    "Code 1 min on a Stardance project today to unlock a reroll"
   end
 
   # The copy-to-share blurb, e.g.

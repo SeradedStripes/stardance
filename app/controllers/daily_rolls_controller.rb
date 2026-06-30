@@ -5,6 +5,10 @@
 class DailyRollsController < ApplicationController
   PAGE_SIZE = 50
 
+  # Surfaces that render the reroll control, mapped to their button size. Used
+  # to validate the reroll_status poll param so it can't render arbitrary sizes.
+  REROLL_SURFACE_SIZES = { "rng-hero" => :large, "daily-roll-widget" => :small }.freeze
+
   before_action :require_week_2_release
 
   def create
@@ -43,6 +47,25 @@ class DailyRollsController < ApplicationController
     end
   end
 
+  # Polled (plain fetch) by the locked reroll button so it can flip to unlocked
+  # in place once today's coding time crosses the threshold — no page reload.
+  # Re-kicks the throttled streak sync so a surface that never ran it (e.g. the
+  # rail widget on the home page) still gets fresh data while the user waits.
+  def reroll_status
+    authorize :daily_roll, :reroll?
+
+    size = REROLL_SURFACE_SIZES[params[:surface]]
+    head :not_found and return unless size && Flipper.enabled?(:rng_reroll, current_user)
+
+    current_user.sync_streak_if_stale!
+
+    roll = DailyRoll.for_today(current_user)
+    head :no_content and return unless roll
+
+    render partial: "daily_rolls/reroll_control",
+           locals: { user: current_user, roll: roll, block: params[:surface], size: size }
+  end
+
   # Dev/test only (see routes): wipe today's roll so the reveal can be
   # re-tested without waiting for midnight.
   def clear
@@ -56,9 +79,12 @@ class DailyRollsController < ApplicationController
   def leaderboard
     authorize :daily_roll
 
-    # Refresh today's coding time (throttled) so a reroll unlocks promptly for
-    # someone who lands straight on /rng after coding.
-    current_user&.sync_streak_if_stale! if Flipper.enabled?(:rng_reroll, current_user)
+    # Refresh today's coding time on every /rng visit so the reroll unlocks
+    # promptly after coding — but once they've coded enough to unlock there's
+    # nothing more to learn, so stop hitting Hackatime.
+    if current_user && Flipper.enabled?(:rng_reroll, current_user) && !reroll_unlocked?(current_user)
+      current_user.sync_streak!
+    end
 
     @body_class = "app-layout-page"
     @today = Date.current
@@ -137,7 +163,13 @@ class DailyRollsController < ApplicationController
     current_user.present? &&
       Flipper.enabled?(:rng_reroll, current_user) &&
       roll.present? && !roll.rerolled? &&
-      current_user.streak_today_activity&.coded_seconds.to_i > DailyRoll::REROLL_MIN_SECONDS
+      reroll_unlocked?(current_user)
+  end
+
+  # Has the user coded enough today to unlock the reroll? Coding time only ever
+  # accumulates, so once this is true it stays true for the rest of the day.
+  def reroll_unlocked?(user)
+    user.streak_today_activity&.coded_seconds.to_i > DailyRoll::REROLL_MIN_SECONDS
   end
 
   # Replace both rng surfaces with the post-reroll state; just_rerolled drives

@@ -1,6 +1,9 @@
 module User::Streakable
   extend ActiveSupport::Concern
 
+  # How long a streak sync holds off the next throttled sync (sync_streak_if_stale!).
+  STREAK_SYNC_THROTTLE = 2.minutes
+
   included do
     has_many :streak_activities, dependent: :destroy
   end
@@ -35,19 +38,24 @@ module User::Streakable
     streak_activities.for_date(streak_today_date).first
   end
 
-  # Kick off a streak sync at most once per 15 minutes, so any surface that
-  # reads today's coding time (the streak widget, the rng reroll gate) shows
-  # reasonably fresh data without re-syncing on every page load. The cache
-  # key is shared across surfaces so they throttle together. No-op for users
-  # without a linked Hackatime account.
-  def sync_streak_if_stale!
+  # Kick off a streak sync now, arming a shared throttle window so the surfaces
+  # that read today's coding time incidentally (the streak widget, the reroll
+  # poll) don't pile on. The window is keyed per user and shared across
+  # surfaces. No-op for users without a linked Hackatime account.
+  def sync_streak!
     return unless hackatime_identity.present?
 
-    cache_key = "streak_sync:#{id}"
-    return if Rails.cache.read(cache_key)
-
-    Rails.cache.write(cache_key, true, expires_in: 15.minutes)
+    Rails.cache.write(streak_sync_throttle_key, true, expires_in: STREAK_SYNC_THROTTLE)
     StreakSyncJob.perform_later(id)
+  end
+
+  # Like sync_streak!, but only when the throttle window has lapsed — so any
+  # surface that just wants reasonably fresh coding time shows it without
+  # re-syncing on every page load.
+  def sync_streak_if_stale!
+    return if Rails.cache.read(streak_sync_throttle_key)
+
+    sync_streak!
   end
 
   # Most recent day (streak-day granularity) the user logged any Hackatime
@@ -99,6 +107,10 @@ module User::Streakable
   end
 
   private
+
+  def streak_sync_throttle_key
+    "streak_sync:#{id}"
+  end
 
   def calculate_current_streak
     today = streak_today_date

@@ -45,21 +45,7 @@
                   data-action="click->copy#copy">copy to share</button>
 
           <% if reroll_enabled?(current_user) %>
-            <% case reroll_state(current_user, roll) %>
-            <% when :unlocked %>
-              <%# Turbo Drive is off app-wide; opt in so the reveal animation runs. %>
-              <%= button_to "reroll", reroll_daily_roll_path,
-                            class: "action-btn action-btn--primary action-btn--large rng-hero__reroll",
-                            form: { data: { turbo: true } },
-                            data: { turbo_submits_with: "rerolling…" } %>
-            <% when :locked %>
-              <%= render ActionButtonComponent.new(
-                    text: "reroll 🔒", type: :button, disabled: :soft,
-                    class: "rng-hero__reroll",
-                    data: { controller: "tooltip", tooltip_message_value: reroll_locked_hint(current_user) }) %>
-            <% when :used %>
-              <span class="rng-hero__reroll-note">rerolled +<%= formatted_roll_value(roll.reroll_value) %></span>
-            <% end %>
+            <%= render "daily_rolls/reroll_control", user: current_user, roll: roll, block: "rng-hero", size: :large %>
           <% end %>
         <% end %>
       </div>
