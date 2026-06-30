@@ -1390,7 +1390,8 @@ turbo-frame#project_hero {
   width: min(720px, calc(100vw - 2 * var(--space-m)));
   max-height: min(820px, calc(100dvh - 2 * var(--space-m)));
   padding: 0;
-  border: 1px solid color-mix(in srgb, var(--color-brand-highlight) 45%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--color-brand-highlight) 45%, transparent);
   border-radius: var(--border-radius, 16px);
   background: var(--color-space-bg-2, #0d0b2e);
   color: var(--color-space-text);
@@ -1503,8 +1504,13 @@ turbo-frame#project_hero {
   gap: var(--space-m);
   padding: var(--space-m);
   border-radius: calc(var(--border-radius, 16px) - 4px);
-  background: color-mix(in srgb, var(--color-brand-highlight) 8%, rgba(255, 255, 255, 0.03));
-  border: 1px solid color-mix(in srgb, var(--color-brand-highlight) 28%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--color-brand-highlight) 8%,
+    rgba(255, 255, 255, 0.03)
+  );
+  border: 1px solid
+    color-mix(in srgb, var(--color-brand-highlight) 28%, transparent);
 }
 
 .payout-review-modal__processing,
