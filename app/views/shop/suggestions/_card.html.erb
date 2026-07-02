@@ -38,11 +38,11 @@
 
     <% if suggestion.rejected? && suggestion.rejection_reason.present? %>
       <p class="suggestion-card__rejection-reason">
-        "<%= suggestion.rejection_reason %>"<% if decided_by %> &mdash; <%= decided_by.display_name %><% end %>
+        "<%= suggestion.rejection_reason %>"<% if decided_by %> &mdash; rejected by <%= decided_by.display_name %><% end %>
       </p>
     <% elsif decided_by %>
       <p class="suggestion-card__decided-by suggestion-card__decided-by--<%= suggestion.aasm_state %>">
-        by <%= decided_by.display_name %>
+        <%= suggestion.accepted? ? "accepted" : "rejected" %> by <%= decided_by.display_name %>
       </p>
     <% end %>
   </div>
