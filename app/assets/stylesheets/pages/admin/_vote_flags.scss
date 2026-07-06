@@ -238,9 +238,23 @@
 
   &__actions {
     display: flex;
-    align-items: center;
-    gap: var(--space-s);
+    align-items: flex-start;
+    gap: var(--space-m);
     flex-wrap: wrap;
+  }
+
+  &__action-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xxs);
+  }
+
+  &__action-hint {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    color: var(--color-space-text-muted);
+    max-width: 22ch;
+    line-height: 1.4;
   }
 
   &__empty {
