@@ -16,7 +16,7 @@
 # Indexes
 #
 #  index_certification_integrities_on_reviewer_id    (reviewer_id)
-#  index_certification_integrities_on_ship_event_id  (ship_event_id)
+#  index_certification_integrities_on_ship_event_id  (ship_event_id) UNIQUE
 #  index_certification_integrities_on_status         (status)
 #
 # Foreign Keys

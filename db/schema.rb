@@ -204,7 +204,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_07_153613) do
     t.integer "status", default: 0, null: false
     t.datetime "updated_at", null: false
     t.index ["reviewer_id"], name: "index_certification_integrities_on_reviewer_id"
-    t.index ["ship_event_id"], name: "index_certification_integrities_on_ship_event_id"
+    t.index ["ship_event_id"], name: "index_certification_integrities_on_ship_event_id", unique: true
     t.index ["status"], name: "index_certification_integrities_on_status"
   end
 
