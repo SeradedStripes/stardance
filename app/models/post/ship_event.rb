@@ -120,6 +120,14 @@ class Post::ShipEvent < ApplicationRecord
     update!(hours_at_ship: hours_logged_in_ship_window)
   end
 
+  # All non-deleted devlogs in this ship's window, regardless of phase —
+  # unlike hours_at_ship, which only counts build-phase devlogs on hardware.
+  def window_devlogs_count
+    return 0 unless post&.project && post.created_at
+
+    window_devlogs.count
+  end
+
   private
 
   def hours_logged_in_ship_window
@@ -129,10 +137,13 @@ class Post::ShipEvent < ApplicationRecord
   end
 
   def devlogs_in_ship_window
+    window_devlogs.then { |scope| project.hardware? ? scope.where(post_devlogs: { phase: "build" }) : scope }
+  end
+
+  def window_devlogs
     project.posts.of_devlogs(join: true)
            .where("posts.created_at >= ? AND posts.created_at <= ?", ship_window_start_time, post.created_at)
            .where(post_devlogs: { deleted_at: nil })
-           .then { |scope| project.hardware? ? scope.where(post_devlogs: { phase: "build" }) : scope }
   end
 
   def ship_window_start_time
