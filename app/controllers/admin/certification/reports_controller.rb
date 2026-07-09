@@ -40,6 +40,12 @@ class Admin::Certification::ReportsController < Admin::Certification::Applicatio
           hash[version.item_id.to_i] = :auto
         end
       end
+
+      @report_groups = @reports
+        .group_by(&:project_id)
+        .values
+        .map { |reports| reports.sort_by(&:created_at) }
+        .sort_by { |reports| [ -reports.size, reports.first.created_at ] }
     end
 
     def show
