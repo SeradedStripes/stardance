@@ -74,6 +74,7 @@
         <% if project.fire? %>
           <span class="project-show__badge project-show__badge--fire">⭐ Super Star Project</span>
         <% end %>
+        <%= render "projects/report_button", project: project %>
       </div>
     </div>
   </header>
