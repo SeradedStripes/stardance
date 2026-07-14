@@ -64,7 +64,9 @@ class Mission::Submission < ApplicationRecord
 
   aasm column: :status, no_direct_assignment: true do
     state :awaiting_certification, initial: true
-    state :pending
+    # Queue age counts from the last review, so entering the queue (ship cert
+    # approved, or a decision undone/resubmitted) restamps pending_at.
+    state :pending, before_enter: :stamp_pending_at
     state :approved
     state :rejected
 
@@ -101,8 +103,14 @@ class Mission::Submission < ApplicationRecord
   scope :reviewable,  -> { pending }
   scope :unredeemed,  -> { approved.where(shop_order_id: nil) }
   scope :stale_pending, ->(days: 7) {
-    pending.where("created_at < ?", days.days.ago)
+    pending.where("pending_at < ?", days.days.ago)
   }
+
+  # When the submission last entered the review queue; created_at covers rows
+  # that predate pending_at (or never reached the queue).
+  def queue_entered_at
+    pending_at || created_at
+  end
 
   # Per-mission reviewers/owners, minus teammates (no self-review). Global
   # mission_reviewers manage every mission but are deliberately left out here —
@@ -137,6 +145,10 @@ class Mission::Submission < ApplicationRecord
   end
 
   private
+
+  def stamp_pending_at
+    self.pending_at = Time.current
+  end
 
   def notify_reviewers
     builder = ship_event&.post&.user

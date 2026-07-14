@@ -37,7 +37,7 @@ module MissionReviewable
       scope = scope.where.not(id: skip_ids) if skip_ids.any?
       scope.order(
         Arel.sql(sanitize_sql_array([ "CASE WHEN reviewed_by_id = ? THEN 0 ELSE 1 END", user.id ])),
-        :created_at
+        Arel.sql("COALESCE(pending_at, created_at)")
       ).first
     end
 
@@ -62,10 +62,10 @@ module MissionReviewable
         new_today: scoped.where(created_at: today..).count,
         decisions_this_week: decided.where(reviewed_at: week..).count,
         new_this_week: scoped.where(created_at: week..).count,
-        oldest_pending: scoped.pending.order(created_at: :asc).first,
+        oldest_pending: scoped.pending.order(Arel.sql("COALESCE(pending_at, created_at)")).first,
         queue_target: QUEUE_TARGET,
         sla_days: SLA_DAYS,
-        overdue_pending: scoped.pending.where("created_at < ?", now - SLA_DAYS.days).count
+        overdue_pending: scoped.pending.where("COALESCE(pending_at, created_at) < ?", now - SLA_DAYS.days).count
       }
     end
 
