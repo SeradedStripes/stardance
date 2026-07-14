@@ -24,7 +24,7 @@ module Admin
         oldest_pending = Mission::Submission
                            .where(status: "pending", deleted_at: nil)
                            .group(:mission_id)
-                           .minimum(:created_at)
+                           .minimum(Arel.sql("COALESCE(pending_at, created_at)"))
 
         @mission_stats = @missions.map do |m|
           {
@@ -54,7 +54,7 @@ module Admin
         scope = scope.where(mission_id: @mission.id) if @mission
 
         scope = apply_filters(scope)
-        @submissions = scope.order(created_at: :asc).limit(100)
+        @submissions = scope.order(Arel.sql("COALESCE(pending_at, created_at) ASC")).limit(100)
       end
 
       def show

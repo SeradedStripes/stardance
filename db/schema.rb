@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_08_183407) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_14_143837) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -564,6 +564,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_08_183407) do
     t.datetime "deleted_at"
     t.bigint "mission_id", null: false
     t.string "payout_path", null: false
+    t.datetime "pending_at"
     t.text "rejection_message"
     t.datetime "reviewed_at"
     t.bigint "reviewed_by_id"
@@ -583,6 +584,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_08_183407) do
     t.index ["shop_order_id"], name: "index_mission_submissions_with_shop_order", where: "(shop_order_id IS NOT NULL)"
     t.index ["status", "claim_expires_at"], name: "idx_mission_submissions_on_status_claim_expires"
     t.index ["status", "created_at"], name: "index_mission_submissions_on_status_and_created_at"
+    t.index ["status", "pending_at"], name: "index_mission_submissions_on_status_and_pending_at"
   end
 
   create_table "missions", force: :cascade do |t|
