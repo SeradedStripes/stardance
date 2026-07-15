@@ -865,6 +865,7 @@ DEPENDENCIES
   rspec-rails
   rubocop
   rubocop-rails-omakase
+  rubyzip (~> 3.0)
   selenium-webdriver
   sentry-rails (~> 6.6)
   sentry-ruby (~> 6.6)
