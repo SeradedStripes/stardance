@@ -128,6 +128,24 @@ class FeedEventsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, @post.reload.views_count
   end
 
+  test "unverified user does not record a post view" do
+    @user.update!(verification_status: "needs_submission")
+
+    assert_no_difference -> { PostView.count }, -> { @post.reload.views_count } do
+      post feed_events_path, params: {
+        events: [
+          {
+            event_type: "impression",
+            item_type: "post",
+            post_id: @post.id
+          }
+        ]
+      }, as: :json
+    end
+
+    assert_response :accepted
+  end
+
   private
     def with_gorse_enabled
       original = Gorse.method(:enabled?)

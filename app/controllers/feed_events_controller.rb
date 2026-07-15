@@ -15,7 +15,7 @@ class FeedEventsController < ApplicationController
   }.freeze
 
   def create
-    if current_user.present?
+    if current_user.present? && current_user.identity_verified?
       event_params.each { |event| record_event(event) }
     end
 
