@@ -578,6 +578,7 @@ Rails.application.routes.draw do
       end
     end
     resource :notification_settings, only: [ :show, :update ], controller: "notification_settings"
+    resources :data_exports, only: [ :index, :create, :show ]
   end
   get "my/achievements", to: "achievements#index", as: :my_achievements
 
