@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_14_143837) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_15_225859) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -1325,6 +1325,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_14_143837) do
     t.index ["user_id"], name: "index_user_achievements_on_user_id"
   end
 
+  create_table "user_data_exports", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "error_message"
+    t.string "status", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.string "zip_filename"
+    t.index ["user_id", "status"], name: "index_user_data_exports_on_user_id_and_status"
+    t.index ["user_id"], name: "index_user_data_exports_on_user_id"
+  end
+
   create_table "user_hackatime_projects", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "name", null: false
@@ -1672,6 +1683,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_14_143837) do
   add_foreign_key "show_and_tell_payout_records", "users", column: "payout_given_by_id"
   add_foreign_key "streak_activities", "users"
   add_foreign_key "user_achievements", "users"
+  add_foreign_key "user_data_exports", "users"
   add_foreign_key "user_hackatime_projects", "projects"
   add_foreign_key "user_hackatime_projects", "users"
   add_foreign_key "user_identities", "users"
