@@ -9,6 +9,6 @@ class CreateUserDataExports < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :user_data_exports, [:user_id, :status]
+    add_index :user_data_exports, [ :user_id, :status ]
   end
 end
