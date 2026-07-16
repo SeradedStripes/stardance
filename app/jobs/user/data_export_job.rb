@@ -1,0 +1,140 @@
+require "zip"
+
+class User::DataExportJob < ApplicationJob
+  queue_as :background
+
+  def perform(data_export_id)
+    @data_export = User::DataExport.find_by(id: data_export_id)
+    return unless @data_export
+
+    @data_export.update!(status: "processing")
+
+    user = @data_export.user
+    zip_filename = "stardance-export-#{user.display_name.parameterize}-#{Time.current.strftime("%Y%m%d%H%M%S")}.zip"
+
+    temp_zip = Tempfile.new([ "stardance_export", ".zip" ])
+
+    begin
+      Zip::OutputStream.open(temp_zip.path) do |zip|
+        write_profile(zip, user)
+        write_projects(zip, user)
+        write_readme(zip, user)
+      end
+
+      @data_export.update!(status: "completed", zip_filename: zip_filename)
+      @data_export.zip_file.attach(
+        io: File.open(temp_zip.path),
+        filename: zip_filename,
+        content_type: "application/zip"
+      )
+    rescue StandardError => e
+      @data_export.update!(status: "failed", error_message: "#{e.class}: #{e.message}")
+      raise e
+    ensure
+      temp_zip.close
+      temp_zip.unlink
+    end
+  end
+
+  private
+
+  def write_profile(zip, user)
+    profile_data = {
+      id: user.id,
+      display_name: user.display_name,
+      email: user.email,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      bio: user.bio,
+      created_at: user.created_at,
+      updated_at: user.updated_at
+    }
+
+    zip.put_next_entry("profile.json")
+    zip.write(JSON.pretty_generate(profile_data))
+  end
+
+  def write_projects(zip, user)
+    user.projects.includes(:devlogs).find_each do |project|
+      safe_title = project.title.parameterize.presence || "project-#{project.id}"
+      project_dir = "projects/#{safe_title}"
+
+      project_data = {
+        id: project.id,
+        title: project.title,
+        description: project.description,
+        demo_url: project.demo_url,
+        repo_url: project.repo_url,
+        readme_url: project.readme_url,
+        ship_status: project.ship_status,
+        shipped_at: project.shipped_at,
+        created_at: project.created_at,
+        updated_at: project.updated_at
+      }
+
+      zip.put_next_entry("#{project_dir}/project.json")
+      zip.write(JSON.pretty_generate(project_data))
+
+      download_attachment(zip, project.banner, "#{project_dir}/banner") if project.banner.attached?
+      download_attachment(zip, project.demo_video, "#{project_dir}/demo-video") if project.demo_video.attached?
+
+      write_devlogs(zip, project, project_dir)
+    end
+  end
+
+  def write_devlogs(zip, project, project_dir)
+    project.devlogs.includes(:post).find_each do |devlog|
+      devlog_dir = "#{project_dir}/devlogs"
+
+      zip.put_next_entry("#{devlog_dir}/devlog-#{devlog.id}.md")
+      zip.write(devlog.body.to_s)
+
+      if devlog.attachments.attached?
+        devlog.attachments.each_with_index do |attachment, index|
+          ext = File.extname(attachment.filename.to_s).presence || ".bin"
+          download_attachment(zip, attachment, "#{devlog_dir}/attachments/#{index + 1}#{ext}")
+        end
+      end
+    end
+  end
+
+  def download_attachment(zip, attachment, entry_name)
+    blob = attachment.is_a?(ActiveStorage::Attached) ? attachment.blob : attachment
+    return unless blob
+
+    zip.put_next_entry(entry_name)
+    zip.write(blob.download)
+  rescue StandardError => e
+    Rails.logger.warn("DataExport: failed to download attachment #{blob&.filename}: #{e.message}")
+  end
+
+  def write_readme(zip, user)
+    project_count = user.projects.count
+    devlog_count = user.projects.joins(:devlog_posts).count
+
+    readme = <<~README
+      # Stardance Data Export
+
+      **User:** #{user.display_name}
+      **Exported:** #{Time.current.strftime("%B %d, %Y at %H:%M UTC")}
+
+      ## Contents
+
+      - `profile.json` - Your profile data
+      - `projects/` - Your projects, each containing:
+        - `project.json` - Project metadata
+        - `banner` - Project banner image (if uploaded)
+        - `demo-video` - Demo video (if uploaded)
+        - `devlogs/` - Development logs as Markdown files
+          - `attachments/` - Images and files from each devlog
+
+      ## Stats
+
+      - **Projects:** #{project_count}
+      - **Devlogs:** #{devlog_count}
+    README
+
+    zip.put_next_entry("README.md")
+    zip.write(readme)
+  end
+end
