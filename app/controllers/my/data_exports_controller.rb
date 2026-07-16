@@ -1,0 +1,46 @@
+class My::DataExportsController < ApplicationController
+  before_action :authenticate_user!
+
+  def index
+    authorize :my, :show_data_exports?
+
+    @body_class = "app-layout-page"
+    @data_exports = current_user.data_exports.order(created_at: :desc).limit(20)
+  end
+
+  def create
+    authorize :my, :create_data_export?
+
+    active_export = current_user.data_exports.pending_or_processing.last
+    if active_export
+      redirect_to my_data_exports_path, notice: "An export is already in progress. Please wait for it to complete."
+      return
+    end
+
+    data_export = current_user.data_exports.create!(status: "pending")
+    User::DataExportJob.perform_later(data_export.id)
+
+    redirect_to my_data_exports_path, notice: "Your data export has been queued. You'll be able to download it once it's ready."
+  end
+
+  def show
+    data_export = current_user.data_exports.find(params[:id])
+    authorize :my, :download_data_export?
+
+    unless data_export.download_available?
+      redirect_to my_data_exports_path, alert: "This export is not ready for download."
+      return
+    end
+
+    redirect_to rails_blob_path(data_export.zip_file, disposition: "attachment")
+  end
+
+  private
+
+  def authenticate_user!
+    return if current_user.present?
+
+    store_return_to
+    redirect_to root_path, alert: "Please sign in to continue."
+  end
+end
