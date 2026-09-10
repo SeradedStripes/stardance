@@ -4,20 +4,21 @@ module Admin
     # person at a time instead of three separate queues that keep handing them
     # the same person.
     #
-    # Two sources feed the default queue: reports on reasons the fraud team owns
-    # and shop orders awaiting a verdict. Integrity checks stay available on a
-    # person's detail page, but do not put someone into this queue by themselves.
-    # Each item scores its age in days times a weight, and a person's priority is
+    # Three sources feed it: flags (Project::Report on a reason the fraud team
+    # owns), shop orders awaiting a verdict, and pending integrity checks. Each
+    # item scores its age in days times a weight, and a person's priority is
     # their single highest-scoring item. Highest wins.
     #
-    # MAX rather than SUM: one genuinely old report should outrank a pile of
-    # fresh orders, and nobody should reach the top of the queue on volume alone.
+    # MAX rather than SUM: one genuinely old flag should outrank a pile of fresh
+    # integrity checks, and nobody should reach the top of the queue on volume
+    # alone.
     class SubjectQueue
       FLAG_WEIGHT = 3.0
       ORDER_WEIGHT = 2.0
+      INTEGRITY_WEIGHT = 1.0
 
-      Subject = Data.define(:user_id, :priority, :flag_count, :order_count, :oldest_at) do
-        def item_count = flag_count + order_count
+      Subject = Data.define(:user_id, :priority, :flag_count, :order_count, :integrity_count, :oldest_at) do
+        def item_count = flag_count + order_count + integrity_count
       end
 
       # One row per person with work waiting, ordered by priority. Banned people
@@ -32,6 +33,7 @@ module Admin
                 MAX(fraud_items.weight * EXTRACT(EPOCH FROM (NOW() - fraud_items.created_at)) / 86400.0) AS priority,
                 COUNT(*) FILTER (WHERE fraud_items.kind = 'flag') AS flag_count,
                 COUNT(*) FILTER (WHERE fraud_items.kind = 'order') AS order_count,
+                COUNT(*) FILTER (WHERE fraud_items.kind = 'integrity') AS integrity_count,
                 MIN(fraud_items.created_at) AS oldest_at
               SQL
               .order(Arel.sql("priority DESC"))
@@ -44,6 +46,7 @@ module Admin
             priority: row.priority.to_f,
             flag_count: row.flag_count,
             order_count: row.order_count,
+            integrity_count: row.integrity_count,
             oldest_at: row.oldest_at
           )
         end
@@ -70,9 +73,9 @@ module Admin
           .select("posts.user_id AS user_id, certification_integrities.created_at AS created_at")
       end
 
-      # The review sources narrowed to one person. The subject page and verdict
-      # responses read them from here so filters cannot drift between the queue
-      # and the page it opens.
+      # The same three sources, narrowed to one person. The subject page and the
+      # verdict responses both read them from here so a filter can never drift
+      # between the queue and the page it opens.
       def self.flags_for(user)
         ::Project::Report.pending
           .where(project: user.projects, reason: ::Project::Report::FRAUD_REVIEW_REASONS)
@@ -87,6 +90,31 @@ module Admin
             .order(created_at: :asc)
       end
 
+      # The checks a cascading verdict settled alongside the one actually
+      # decided: same person, same project, no longer pending. Their rows leave
+      # the list on its own refresh, but nothing else knows they moved.
+      def self.cascaded_siblings_of(check, user:)
+        project_id = check.ship_event&.post&.project_id
+        return ::Certification::Integrity.none if project_id.nil?
+
+        ::Certification::Integrity.where.not(status: :pending)
+          .where.not(id: check.id)
+          .joins(ship_event: :post)
+          .where(posts: { user_id: user.id, project_id: project_id })
+      end
+
+      # The next person a reviewer should pick up: highest priority first,
+      # skipping the one they just finished and anyone another reviewer is
+      # currently holding.
+      def self.next_subject_id(reviewer:, after: nil)
+        held = ::FraudSubjectClaim.active.where.not(reviewer_id: reviewer.id).pluck(:subject_id)
+        excluded = ([ after&.id ] + held).compact
+
+        scope = relation
+        scope = scope.where.not(id: excluded) if excluded.any?
+        scope.first&.user_id
+      end
+
       def self.integrity_checks_for(user)
         ::Certification::Integrity.pending
           .joins(ship_event: :post)
@@ -98,7 +126,8 @@ module Admin
       def self.items_sql
         [
           branch_sql(flags, "flag", FLAG_WEIGHT),
-          branch_sql(orders, "order", ORDER_WEIGHT)
+          branch_sql(orders, "order", ORDER_WEIGHT),
+          branch_sql(integrity_checks, "integrity", INTEGRITY_WEIGHT)
         ].join(" UNION ALL ")
       end
 

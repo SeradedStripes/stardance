@@ -7,7 +7,7 @@ class Admin::Fraud::SubjectsControllerTest < ActionDispatch::IntegrationTest
 
   setup do
     @squad = create_user(slack_id: "U_FRAUD_SQUAD", display_name: "squaddie")
-    @squad.grant_role!(:fraud_squad)
+    @squad.grant_role!(:fraud_fraud_squad_squad)
 
     @subject = create_user(slack_id: "U_FRAUD_SUBJECT", display_name: "subject")
     @reporter = create_user(slack_id: "U_FRAUD_REPORTER", display_name: "reporter")
@@ -26,14 +26,84 @@ class Admin::Fraud::SubjectsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".fraud-subject-card__avatar[src=?]", @subject.avatar
   end
 
-  test "the queue leaves out someone with only an integrity check" do
+  test "the progress bar gives each waiting item one slot" do
+    flag_the_project
     pending_integrity_check(@project)
 
     sign_in @squad
-    get admin_fraud_subjects_path
+    get admin_fraud_subject_path(@subject)
 
     assert_response :success
-    assert_select "a[href=?]", admin_fraud_subject_path(@subject), count: 0
+    assert_select ".fraud-subject__progress-slot", count: 2
+    assert_select ".fraud-subject__progress-slot--flag", count: 1
+    assert_select ".fraud-subject__progress-slot--integrity", count: 1
+    assert_select ".fraud-subject__progress-slot--done", count: 0
+  end
+
+  test "opening a person takes them for the reviewer" do
+    flag_the_project
+
+    sign_in @squad
+    get admin_fraud_subject_path(@subject)
+
+    assert_response :success
+    assert_equal @squad.id, FraudSubjectClaim.sole.reviewer_id
+    assert_select ".fraud-subject__claim", count: 0
+  end
+
+  test "a person held by someone else shows the holder and hides the verdicts" do
+    holder = create_user(slack_id: "U_FRAUD_HOLDS", display_name: "holdsit")
+    FraudSubjectClaim.claim(@subject, holder)
+    flag_the_project
+
+    sign_in @squad
+    get admin_fraud_subject_path(@subject)
+
+    assert_response :success
+    assert_select ".fraud-subject--claimed-elsewhere"
+    assert_select ".fraud-subject__claim", text: /holdsit/
+    assert_equal holder.id, FraudSubjectClaim.sole.reviewer_id, "the holder is not displaced"
+  end
+
+  test "a cleared person offers the next one in the queue" do
+    other = create_user(slack_id: "U_FRAUD_NEXT", display_name: "nextup")
+    project = Project.create!(title: "Next flagged")
+    Project::Membership.create!(project:, user: other, role: :owner)
+    Project::Report.create!(project:, reporter: @squad, reason: "fraud",
+                            details: "Detailed fraud report body for the test suite.")
+
+    sign_in @squad
+    get admin_fraud_subject_path(@subject)
+
+    assert_response :success
+    assert_select "a.fraud-subject__next-button[href=?]", admin_fraud_subject_path(other)
+  end
+
+  test "a person still waiting on a verdict gets no next button" do
+    flag_the_project
+
+    sign_in @squad
+    get admin_fraud_subject_path(@subject)
+
+    assert_response :success
+    assert_select ".fraud-subject__next-button", count: 0
+  end
+
+  test "the next person skips anyone another reviewer is holding" do
+    held = create_user(slack_id: "U_FRAUD_HELD", display_name: "heldup")
+    holder = create_user(slack_id: "U_FRAUD_HOLDER2", display_name: "holder2")
+    project = Project.create!(title: "Held flagged")
+    Project::Membership.create!(project:, user: held, role: :owner)
+    Project::Report.create!(project:, reporter: @squad, reason: "fraud",
+                            details: "Detailed fraud report body for the test suite.")
+    FraudSubjectClaim.claim(held, holder)
+
+    sign_in @squad
+    get admin_fraud_subject_path(@subject)
+
+    assert_response :success
+    assert_select ".fraud-subject__next-button", count: 0
+    assert_select ".fraud-subject__next-empty"
   end
 
   test "the queue leaves out quality reports the fraud team does not own" do
