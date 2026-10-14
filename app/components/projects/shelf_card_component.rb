@@ -16,7 +16,8 @@ module Projects
     end
 
     def plain_description
-      helpers.strip_tags(helpers.md(description, allow_images: false)).squish
+      # strip_tags leaves entities (&amp;); decode so the view escapes them once.
+      CGI.unescapeHTML(helpers.strip_tags(helpers.md(description, allow_images: false))).squish
     end
 
     def engagement_data
